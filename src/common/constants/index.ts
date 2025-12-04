@@ -12,3 +12,8 @@ export enum ROLE {
   ADMIN = 'Admin',
   USER = 'User',
 }
+
+export enum TreasureScope {
+  ALL = 'all',
+  MINE = 'mine',
+}

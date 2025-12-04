@@ -10,6 +10,7 @@ import {
 import {
   ForgotPasswordDto,
   LoginDto,
+  RefreshTokenDto,
   ResetPasswordDto,
   SignupDto,
   TokenDto,
@@ -37,7 +38,7 @@ export class AuthService {
     private readonly emailService: EmailService,
   ) {}
 
-  async signup(signupDto: SignupDto) {
+  async signup(signupDto: SignupDto): Promise<any> {
     try {
       const { name, email, password } = signupDto;
 
@@ -78,9 +79,9 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto): Promise<any> {
+  async login(payload: LoginDto): Promise<any> {
     try {
-      const { email, password } = loginDto;
+      const { email, password } = payload;
 
       const user = await this.findUser(email);
 
@@ -99,18 +100,17 @@ export class AuthService {
         role: user.role,
       };
 
-      const token = await this.processLogin(loginPayload);
+      const {accessToken,refreshToken} = await this.processLogin(user, loginPayload);
 
-      return {
-        token: token,
-      };
+       return { accessToken,refreshToken };
+
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
 
-  async loginWithGoogle(payload: TokenDto) {
+  async loginWithGoogle(payload: TokenDto): Promise<any> {
     try {
       const { email, firstName, lastName } =
         await this.googleTokenService.verifyIdToken(payload.token);
@@ -141,14 +141,57 @@ export class AuthService {
         role: user.role,
       };
 
-      return this.processLogin(tokenPayload);
+      const {accessToken,refreshToken} = await this.processLogin(user, tokenPayload);
+
+    return { accessToken,refreshToken };
     } catch (error) {
       console.error('Google login error:', error);
       throw error;
     }
   }
 
-  async forgotPassword(payload: ForgotPasswordDto) {
+  async refreshToken(payload: RefreshTokenDto): Promise<any> {
+    try {
+    const { refreshToken } = payload;
+
+      const decoded = this.jwtService.verify(refreshToken, {
+        secret: this.config.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      });
+
+      const user = await this.userModel.findById(decoded._id);
+      if (!user || user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Invalid or revoked refresh token');
+      }
+
+      const tokenSender = new TokenSender(this.config, this.jwtService);
+      const accessToken = await tokenSender.createAccessToken({
+        _id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+
+      const newRefreshToken = await tokenSender.createRefreshToken({
+        _id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+
+      user.refreshToken = newRefreshToken;
+      await user.save();
+
+      return { accessToken, refreshToken: newRefreshToken };
+    } catch (error) {
+      console.log(error);
+       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+      throw error;
+    }
+  }
+
+  async forgotPassword(payload: ForgotPasswordDto): Promise<any> {
     try {
       const { email } = payload;
       const user = await this.findUser(email);
@@ -254,7 +297,7 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  async findUser(email) {
+  async findUser(email):Promise<any> {
     try {
       const user = await this.userModel.findOne({ email }).lean().exec();
 
@@ -284,7 +327,7 @@ export class AuthService {
     return await bcrypt.compare(password, hashedPassword);
   }
 
-  private async processLogin(payload: {
+  private async processLogin(user: User,payload: {
     _id: string;
     name: string;
     email: string;
@@ -292,7 +335,19 @@ export class AuthService {
   }): Promise<any> {
     try {
       const tokenSender = new TokenSender(this.config, this.jwtService);
-      return await tokenSender.createAccessToken(payload);
+      
+    const [accessToken, refreshToken] = await Promise.all([
+        tokenSender.createAccessToken(payload),
+        tokenSender.createRefreshToken(payload),
+      ]);
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { refreshToken: refreshToken }
+    );
+
+
+    return {accessToken,refreshToken};
     } catch (error) {
       console.log(error);
       throw error;

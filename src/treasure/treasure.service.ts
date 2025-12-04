@@ -4,8 +4,9 @@ import { UpdateTreasureDto } from './dto/update-treasure.dto';
 import { Treasure } from './schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { DeleteTreasureDto, GetTreasureDto } from './dto';
+import { DeleteTreasureDto, GetTreasureDto, GetTreasuresQueryDto } from './dto';
 import { User } from 'src/user/schema';
+import { TreasureScope } from 'src/common/constants';
 
 @Injectable()
 export class TreasureService {
@@ -13,24 +14,29 @@ export class TreasureService {
     @InjectModel(Treasure.name) private treasureModel: Model<Treasure>,
   ) {}
 
-  async createTreasure(payload: CreateTreasureDto, user: User) {
+  async createTreasure(user: User, payload: CreateTreasureDto): Promise<any> {
     try {
       const treasure = await this.treasureModel.create({
         ...payload,
-        userId: user._id,
+        user: new Types.ObjectId(user._id),
+        category: new Types.ObjectId(payload.category),
+
+        location: {
+          type: 'Point',
+          coordinates: [payload.location.lng, payload.location.lat],
+          address: payload.location.address,
+          placeId: payload.location.placeId,
+        },
       });
 
-      return {
-        message: 'Treasure created successfully',
-        treasure,
-      };
+      return treasure;
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
 
-  async getTreasureDetail(payload: GetTreasureDto) {
+  async getTreasureDetail(payload: GetTreasureDto): Promise<any> {
     try {
       const { treasureId } = payload;
       const treasure = await this.treasureModel.findById(treasureId);
@@ -43,38 +49,31 @@ export class TreasureService {
     }
   }
 
-  async getAllTreasures(
-    query: {
-      page?: number;
-      limit?: number;
-      searchBy?: string;
-      category?: string;
-      condition?: string;
-    },
-    user: User,
-  ): Promise<any> {
+  async getAllTreasures(user: User, query: GetTreasuresQueryDto): Promise<any> {
     try {
-      const page = Number(query.page) || 1;
-      const limit = Number(query.limit) || 15;
+      const {
+        page = 1,
+        limit = 15,
+        searchBy,
+        category,
+        condition,
+        longitude,
+        latitude,
+        distance,
+        scope = TreasureScope.ALL,
+      } = query;
+
       const skip = (page - 1) * limit;
 
-      const { searchBy, category, condition } = query;
+      const filter: any = {};
 
-      const filter: Record<string, any> = {};
-
-      // 🔒 If normal user → restrict to their own treasures
-      if (user.role === 'User') {
-        filter.userId = user._id;
+      if (scope === TreasureScope.MINE) {
+        filter.user = new Types.ObjectId(user._id);
       }
-      // If Admin, do nothing → full access
 
-      // Filter by category
-      if (category) filter.category = category;
-
-      // Filter by condition
+      if (category) filter.category = new Types.ObjectId(category);
       if (condition) filter.condition = condition;
 
-      // Search across multiple fields
       if (searchBy?.trim()) {
         const regex = { $regex: searchBy.trim(), $options: 'i' };
 
@@ -91,6 +90,64 @@ export class TreasureService {
         }
 
         filter.$or = conditions;
+      }
+
+      const useGeo =
+        longitude !== undefined &&
+        latitude !== undefined &&
+        distance !== undefined;
+
+      if (useGeo) {
+        const distanceInMeters = distance * 1000;
+
+        const pipeline: any[] = [
+          {
+            $geoNear: {
+              near: {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+              },
+              distanceField: 'distance',
+              maxDistance: distanceInMeters,
+              spherical: true,
+              query: filter,
+            },
+          },
+          { $sort: { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+        ];
+
+        const treasures = await this.treasureModel.aggregate(pipeline);
+
+        const totalPipeline: any = [
+          {
+            $geoNear: {
+              near: {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+              },
+              distanceField: 'distance',
+              maxDistance: distanceInMeters,
+              spherical: true,
+              query: filter,
+            },
+          },
+          { $count: 'total' },
+        ];
+
+        const totalResult = await this.treasureModel.aggregate(totalPipeline);
+        const total = totalResult[0]?.total || 0;
+
+        return {
+          treasures,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
       }
 
       const [treasures, total] = await Promise.all([
@@ -119,10 +176,21 @@ export class TreasureService {
     }
   }
 
-  async updateTreasure(payload: UpdateTreasureDto) {
+  async updateTreasure(payload: UpdateTreasureDto): Promise<any> {
     try {
-      const { treasureId, ...updateFields } = payload;
+      const { treasureId, location, category, ...updateFields } = payload;
 
+      if (location) {
+        (updateFields as any).location = {
+          type: 'Point',
+          coordinates: [location.lng, location.lat],
+          address: location.address ?? '',
+          placeId: location.placeId ?? '',
+        };
+      }
+      if (category) {
+        (updateFields as any).category = new Types.ObjectId(category);
+      }
       const updated = await this.treasureModel.findByIdAndUpdate(
         treasureId,
         { $set: updateFields },
@@ -138,7 +206,7 @@ export class TreasureService {
     }
   }
 
-  async deleteTreasure(payload: DeleteTreasureDto) {
+  async deleteTreasure(payload: DeleteTreasureDto): Promise<any> {
     try {
       const { treasureId } = payload;
       const treasure = await this.treasureModel.findByIdAndDelete(treasureId);

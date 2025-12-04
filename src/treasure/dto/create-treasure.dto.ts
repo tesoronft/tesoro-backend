@@ -1,50 +1,73 @@
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsArray,
+  IsMongoId,
 } from 'class-validator';
 
-export class CreateTreasureDto {
-  @IsString()
+class LocationDto {
   @IsNotEmpty()
+  @IsString()
+  address: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  lat: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  lng: number;
+
+  @IsOptional()
+  @IsString()
+  placeId?: string;
+}
+
+export class CreateTreasureDto {
+  @IsNotEmpty()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   title: string;
 
-  // Google Maps location data
   @IsNotEmpty()
-  location: {
-    address: string;
-    lat: number;
-    lng: number;
-    placeId: string;
-  };
+  location: LocationDto;
 
   @IsOptional()
   @IsArray()
   photos?: string[];
 
   @IsNumber()
-  @IsNotEmpty()
   price: number;
 
-  @IsString()
   @IsNotEmpty()
+  @IsMongoId()
   category: string;
 
-  @IsString()
   @IsNotEmpty()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   condition: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   brand?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   itemModel?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   type?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value.trim())
   description?: string;
 }

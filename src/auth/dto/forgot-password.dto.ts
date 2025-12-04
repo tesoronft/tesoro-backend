@@ -20,10 +20,12 @@ export class ForgotPasswordDto {
 export class ResetPasswordDto {
   @IsNotEmpty({ message: 'Token is required' })
   @IsString()
+  @Transform(({ value }) => value.trim())
   token: string;
 
   @IsNotEmpty()
   @IsString()
+  @Transform(({ value }) => value.trim())
   @MaxLength(20)
   @Matches(authContants.PASSWORD_REGEX_PATTERN, {
     message: authMessages.PASSWORD_INVALID_FORMAT,

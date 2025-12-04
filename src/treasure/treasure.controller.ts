@@ -9,22 +9,22 @@ import {
 import { TreasureService } from './treasure.service';
 import { CreateTreasureDto } from './dto/create-treasure.dto';
 import { UpdateTreasureDto } from './dto/update-treasure.dto';
-import { DeleteTreasureDto, GetTreasureDto } from './dto';
+import { DeleteTreasureDto, GetTreasureDto, GetTreasuresQueryDto } from './dto';
 import { DefaultPaginationPipe } from 'src/common/validations';
 import { AuthGuard, RolesGuard } from 'src/common/guards';
 import { GetUser, Roles } from 'src/common/decorators';
 import { ROLE } from 'src/common/constants';
 import { User } from 'src/user/schema';
 
-@Controller('treasure')
+@Controller('treasures')
 @UseGuards(AuthGuard, RolesGuard)
 export class TreasureController {
   constructor(private readonly treasureService: TreasureService) {}
 
   @Post('create')
   @Roles(ROLE.ADMIN, ROLE.USER)
-  createTreasure(@Body() payload: CreateTreasureDto, @GetUser() user: User) {
-    return this.treasureService.createTreasure(payload, user);
+  createTreasure(@GetUser() user: User, @Body() payload: CreateTreasureDto) {
+    return this.treasureService.createTreasure(user, payload);
   }
 
   @Post('detail')
@@ -36,8 +36,8 @@ export class TreasureController {
   @Post('all')
   @Roles(ROLE.ADMIN, ROLE.USER)
   @UsePipes(DefaultPaginationPipe)
-  getAllTreasures(@GetUser() user: User, @Query() query) {
-    return this.treasureService.getAllTreasures(query, user);
+  getAllTreasures(@GetUser() user: User, @Query() query: GetTreasuresQueryDto) {
+    return this.treasureService.getAllTreasures(user, query);
   }
 
   @Post('update')

@@ -2,7 +2,6 @@ import {
   IsEmail,
   IsString,
   IsNotEmpty,
-  MaxLength,
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
@@ -18,6 +17,7 @@ export class LoginDto {
 
   @IsNotEmpty()
   @IsString()
+  @Transform(({ value }) => value.trim())
   password: string;
 }
 
@@ -31,11 +31,14 @@ export class ForgotPasswordDto {
 
 export class VerifyOtpDto {
   @IsNotEmpty()
+  @IsString()
   @IsEmail()
+  @Transform(({ value }) => value.toLowerCase())
   email: string;
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value.trim())
   otp: string;
 }
 
@@ -46,7 +49,6 @@ export class ResetPasswordDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(20)
   @Matches(authContants.PASSWORD_REGEX_PATTERN, {
     message: authMessages.PASSWORD_INVALID_FORMAT,
   })

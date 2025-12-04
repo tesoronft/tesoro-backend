@@ -61,9 +61,9 @@ export class JwtAuthStrategy extends PassportStrategy(
       };
     } catch (error) {
       console.log(error);
-      // if (error instanceof TokenExpiredError) {
-      //   throw new UnauthorizedException(authMessages.TOKEN_EXPIRED);
-      // } else
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException(authMessages.TOKEN_EXPIRED);
+      } else
       if (error instanceof JsonWebTokenError) {
         throw new UnauthorizedException(authMessages.INVALID_TOKEN);
       }

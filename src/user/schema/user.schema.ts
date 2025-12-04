@@ -36,6 +36,9 @@ export class User extends Document {
 
   @Prop({ default: null })
   passwordResetAt: Date;
+
+  @Prop({ type: String, default: null })
+  refreshToken: string | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

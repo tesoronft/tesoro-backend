@@ -7,18 +7,17 @@ import {
   IsMongoId,
   IsNotEmpty,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 class LocationDto {
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   address?: string;
 
-  @IsOptional()
   @IsNumber()
   lat?: number;
 
-  @IsOptional()
   @IsNumber()
   lng?: number;
 
@@ -30,10 +29,12 @@ class LocationDto {
 export class UpdateTreasureDto {
   @IsNotEmpty()
   @IsMongoId()
+  @Transform(({ value }) => value.trim())
   treasureId: string; // required
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   title?: string;
 
   @IsOptional()
@@ -51,26 +52,31 @@ export class UpdateTreasureDto {
   price?: number;
 
   @IsOptional()
-  @IsString()
+  @IsMongoId()
   category?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   condition?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   brand?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   itemModel?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   type?: string;
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => value.trim())
   description?: string;
 }
