@@ -36,4 +36,7 @@ export const authMessages = {
   USER_BLOCKED: 'Your account has been blocked. Please contact support.',
   NOT_MODIFIED: 'No valid update provided',
   INVALID_DATE_RANGE: 'Date range cannot be greater than 31 days.',
+  SIGNUP_SUCCESS: 'User registered successfully',
+  LOGIN_SUCCESS: 'Login successful',
+  TOKEN_REFRESH_SUCCESS: 'Token refreshed successfully',
 };

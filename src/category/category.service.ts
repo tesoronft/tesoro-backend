@@ -15,11 +15,16 @@ export class CategoryService {
   async createCategory(user: User, payload: CreateCategoryDto): Promise<any> {
     try {
       const { name, description } = payload;
-      return await this.categoryModel.create({
+      const category = await this.categoryModel.create({
         user: new Types.ObjectId(user._id),
-        name: name,
-        description: description,
+        name,
+        description,
       });
+
+      return {
+        message: 'Category created successfully',
+        data: category,
+      };
     } catch (error) {
       console.log(error);
       throw error;
@@ -111,7 +116,10 @@ export class CategoryService {
         throw new NotFoundException('Category not found');
       }
 
-      return updated;
+      return {
+        message: 'Category updated successfully',
+        data: updated,
+      };
     } catch (error) {
       console.log(error);
       throw error;

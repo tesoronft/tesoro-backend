@@ -61,12 +61,34 @@ export class AuthService {
         parseInt(this.config.get('SALT_ROUNDS') || '10'),
       );
 
-      return await this.userModel.create({
+      const createdUser = await this.userModel.create({
         name,
         email,
         password: hashedPassword,
         role: ROLE.USER,
       });
+
+      const userObj: any = createdUser.toObject();
+
+      delete userObj.password;
+      delete userObj.otp;
+      delete userObj.otpExpiry;
+      delete userObj.refreshToken;
+
+      return {
+        message: authMessages.SIGNUP_SUCCESS,
+        data: {
+          _id: userObj._id,
+          name: userObj.name,
+          email: userObj.email,
+          role: userObj.role,
+          isDeleted: userObj.isDeleted,
+          isBlocked: userObj.isBlocked,
+          isOtpVerified: userObj.isOtpVerified,
+          createdAt: userObj.createdAt,
+          updatedAt: userObj.updatedAt,
+        },
+      };
     } catch (error) {
       console.log(error);
       if (error.code === 'P2002') {
@@ -100,10 +122,31 @@ export class AuthService {
         role: user.role,
       };
 
-      const {accessToken,refreshToken} = await this.processLogin(user, loginPayload);
+      const { accessToken, refreshToken } = await this.processLogin(
+        user,
+        loginPayload,
+      );
 
-       return { accessToken,refreshToken };
+      const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isDeleted: user.isDeleted,
+        isBlocked: user.isBlocked,
+        isOtpVerified: user.isOtpVerified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      };
 
+      return {
+        message: authMessages.LOGIN_SUCCESS,
+        data: {
+          user: userData,
+          accessToken,
+          refreshToken,
+        },
+      };
     } catch (error) {
       console.log(error);
       throw error;
@@ -141,9 +184,29 @@ export class AuthService {
         role: user.role,
       };
 
-      const {accessToken,refreshToken} = await this.processLogin(user, tokenPayload);
+      const { accessToken, refreshToken } = await this.processLogin(
+        user,
+        tokenPayload,
+      );
 
-    return { accessToken,refreshToken };
+      const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isDeleted: user.isDeleted,
+        isBlocked: user.isBlocked,
+        isOtpVerified: user.isOtpVerified,
+      };
+
+      return {
+        message: authMessages.LOGIN_SUCCESS,
+        data: {
+          user: userData,
+          accessToken,
+          refreshToken,
+        },
+      };
     } catch (error) {
       console.error('Google login error:', error);
       throw error;
@@ -152,7 +215,7 @@ export class AuthService {
 
   async refreshToken(payload: RefreshTokenDto): Promise<any> {
     try {
-    const { refreshToken } = payload;
+      const { refreshToken } = payload;
 
       const decoded = this.jwtService.verify(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_TOKEN_SECRET'),
@@ -181,12 +244,32 @@ export class AuthService {
       user.refreshToken = newRefreshToken;
       await user.save();
 
-      return { accessToken, refreshToken: newRefreshToken };
+      const userData = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isDeleted: user.isDeleted,
+        isBlocked: user.isBlocked,
+        isOtpVerified: user.isOtpVerified,
+      };
+
+      return {
+        message: authMessages.TOKEN_REFRESH_SUCCESS,
+        data: {
+          user: userData,
+          accessToken,
+          refreshToken: newRefreshToken,
+        },
+      };
     } catch (error) {
       console.log(error);
-       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
+      if (
+        error.name === 'JsonWebTokenError' ||
+        error.name === 'TokenExpiredError'
+      ) {
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
       throw error;
     }
   }
@@ -297,7 +380,7 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  async findUser(email):Promise<any> {
+  async findUser(email): Promise<any> {
     try {
       const user = await this.userModel.findOne({ email }).lean().exec();
 
@@ -327,27 +410,29 @@ export class AuthService {
     return await bcrypt.compare(password, hashedPassword);
   }
 
-  private async processLogin(user: User,payload: {
-    _id: string;
-    name: string;
-    email: string;
-    role: ROLE;
-  }): Promise<any> {
+  private async processLogin(
+    user: User,
+    payload: {
+      _id: string;
+      name: string;
+      email: string;
+      role: ROLE;
+    },
+  ): Promise<any> {
     try {
       const tokenSender = new TokenSender(this.config, this.jwtService);
-      
-    const [accessToken, refreshToken] = await Promise.all([
+
+      const [accessToken, refreshToken] = await Promise.all([
         tokenSender.createAccessToken(payload),
         tokenSender.createRefreshToken(payload),
       ]);
 
-    await this.userModel.updateOne(
-      { _id: user._id },
-      { refreshToken: refreshToken }
-    );
+      await this.userModel.updateOne(
+        { _id: user._id },
+        { refreshToken: refreshToken },
+      );
 
-
-    return {accessToken,refreshToken};
+      return { accessToken, refreshToken };
     } catch (error) {
       console.log(error);
       throw error;

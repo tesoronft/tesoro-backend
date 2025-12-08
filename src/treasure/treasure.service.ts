@@ -29,7 +29,10 @@ export class TreasureService {
         },
       });
 
-      return treasure;
+      return {
+        message: 'Treasure created successfully',
+        data: treasure,
+      };
     } catch (error) {
       console.log(error);
       throw error;
@@ -191,15 +194,15 @@ export class TreasureService {
       if (category) {
         (updateFields as any).category = new Types.ObjectId(category);
       }
-      const updated = await this.treasureModel.findByIdAndUpdate(
+      const data = await this.treasureModel.findByIdAndUpdate(
         treasureId,
         { $set: updateFields },
         { new: true },
       );
 
-      if (!updated) throw new NotFoundException('Treasure not found');
+      if (!data) throw new NotFoundException('Treasure not found');
 
-      return { message: 'Treasure updated successfully', updated };
+      return { message: 'Treasure updated successfully', data };
     } catch (error) {
       console.log(error);
       throw error;
