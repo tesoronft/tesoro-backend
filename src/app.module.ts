@@ -8,6 +8,8 @@ import { UserModule } from './user/user.module';
 import { EmailModule } from './email/email.module';
 import { TreasureModule } from './treasure/treasure.module';
 import { CategoryModule } from './category/category.module';
+import { RatingModule } from './rating/rating.module';
+import { TipModule } from './tip/tip.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { CategoryModule } from './category/category.module';
     EmailModule,
     TreasureModule,
     CategoryModule,
+    RatingModule,
+    TipModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -20,7 +20,7 @@ export class Location {
 @Schema({ timestamps: true })
 export class Treasure extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user: User;
+  postedBy: User;
 
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
   category: Category;
@@ -51,6 +51,12 @@ export class Treasure extends Document {
 
   @Prop({ type: String, default: '', trim: true })
   description: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  collectedBy: Types.ObjectId | null;
+
+  @Prop({ type: Date, default: null })
+  collectedAt: Date | null;
 }
 
 export const TreasureSchema = SchemaFactory.createForClass(Treasure);

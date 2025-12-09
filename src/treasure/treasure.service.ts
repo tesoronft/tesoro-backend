@@ -1,12 +1,22 @@
-import { Body, Injectable, NotFoundException, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateTreasureDto } from './dto/create-treasure.dto';
 import { UpdateTreasureDto } from './dto/update-treasure.dto';
 import { Treasure } from './schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { DeleteTreasureDto, GetTreasureDto, GetTreasuresQueryDto } from './dto';
+import {
+  DeleteTreasureDto,
+  GetCollectedTreasuresByUserDto,
+  GetTreasureDto,
+  GetTreasuresQueryDto,
+} from './dto';
 import { User } from 'src/user/schema';
 import { TreasureScope } from 'src/common/constants';
+import { CollectTreasureDto } from './dto';
 
 @Injectable()
 export class TreasureService {
@@ -18,7 +28,7 @@ export class TreasureService {
     try {
       const treasure = await this.treasureModel.create({
         ...payload,
-        user: new Types.ObjectId(user._id),
+        postedBy: new Types.ObjectId(user._id),
         category: new Types.ObjectId(payload.category),
 
         location: {
@@ -71,7 +81,7 @@ export class TreasureService {
       const filter: any = {};
 
       if (scope === TreasureScope.MINE) {
-        filter.user = new Types.ObjectId(user._id);
+        filter.postedBy = new Types.ObjectId(user._id);
       }
 
       if (category) filter.category = new Types.ObjectId(category);
@@ -216,6 +226,77 @@ export class TreasureService {
       if (!treasure) throw new NotFoundException('Treasure not found');
 
       return { message: 'Treasure deleted successfully' };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async collectTreasure(payload: CollectTreasureDto): Promise<any> {
+    try {
+      const { userId, treasureId } = payload;
+      const treasure = await this.treasureModel.findById(treasureId);
+
+      if (!treasure) {
+        throw new NotFoundException('Treasure not found');
+      }
+
+      if (treasure.collectedBy) {
+        throw new BadRequestException('Treasure already collected');
+      }
+
+      treasure.collectedBy = new Types.ObjectId(userId);
+      treasure.collectedAt = new Date();
+
+      await treasure.save();
+
+      return {
+        message: 'Treasure collected successfully',
+      };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async getCollectedTreasuresByUser(
+    query: { page?: number; limit?: number },
+    payload: GetCollectedTreasuresByUserDto,
+  ): Promise<any> {
+    try {
+      const { userId } = payload;
+
+      const page = query.page ? Number(query.page) : 1;
+      const limit = query.limit ? Number(query.limit) : 15;
+      const skip = (page - 1) * limit;
+
+      const filter = {
+        collectedBy: new Types.ObjectId(userId),
+      };
+
+      const [treasures, total] = await Promise.all([
+        this.treasureModel
+          .find(filter)
+          .select('_id title category collectedAt location photos')
+          .populate({ path: 'postedBy', select: 'name email' })
+          .populate({ path: 'category', select: 'name' })
+          .sort({ collectedAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+
+        this.treasureModel.countDocuments(filter),
+      ]);
+
+      return {
+        data: treasures,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       console.log(error);
       throw error;

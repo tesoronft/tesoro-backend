@@ -61,11 +61,17 @@ export class GetTreasuresQueryDto {
   @Type(() => Number)
   @IsNumber()
   @IsPositive()
-  distance?: number; 
+  distance?: number;
 
   @IsOptional()
   @IsEnum(TreasureScope, {
     message: 'scope must be either "mine" or "all"',
   })
   scope?: TreasureScope;
+}
+export class GetCollectedTreasuresByUserDto {
+  @IsNotEmpty()
+  @IsMongoId()
+  @Transform(({ value }) => value.trim())
+  userId: string;
 }
