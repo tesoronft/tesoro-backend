@@ -38,6 +38,27 @@ export class AuthService {
     private readonly emailService: EmailService,
   ) {}
 
+
+    private buildAuthResponse(user, accessToken: string, refreshToken: string) {
+    return {
+      message: authMessages.AUTH_SUCCESS,
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isDeleted: user.isDeleted,
+          isBlocked: user.isBlocked,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        accessToken,
+        refreshToken,
+      },
+    };
+  }
+
   async signup(signupDto: SignupDto): Promise<any> {
     try {
       const { name, email, password } = signupDto;
@@ -68,27 +89,20 @@ export class AuthService {
         role: ROLE.USER,
       });
 
-      const userObj: any = createdUser.toObject();
-
-      delete userObj.password;
-      delete userObj.otp;
-      delete userObj.otpExpiry;
-      delete userObj.refreshToken;
-
-      return {
-        message: authMessages.SIGNUP_SUCCESS,
-        data: {
-          _id: userObj._id,
-          name: userObj.name,
-          email: userObj.email,
-          role: userObj.role,
-          isDeleted: userObj.isDeleted,
-          isBlocked: userObj.isBlocked,
-          isOtpVerified: userObj.isOtpVerified,
-          createdAt: userObj.createdAt,
-          updatedAt: userObj.updatedAt,
-        },
+      // AUTO LOGIN
+      const loginPayload = {
+        _id: String(createdUser._id),
+        name: createdUser.name,
+        email: createdUser.email,
+        role: createdUser.role,
       };
+
+      const { accessToken, refreshToken } = await this.processLogin(
+        createdUser,
+        loginPayload,
+      );
+
+      return this.buildAuthResponse(createdUser, accessToken, refreshToken);
     } catch (error) {
       console.log(error);
       if (error.code === 'P2002') {
@@ -127,26 +141,7 @@ export class AuthService {
         loginPayload,
       );
 
-      const userData = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isDeleted: user.isDeleted,
-        isBlocked: user.isBlocked,
-        isOtpVerified: user.isOtpVerified,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      };
-
-      return {
-        message: authMessages.LOGIN_SUCCESS,
-        data: {
-          user: userData,
-          accessToken,
-          refreshToken,
-        },
-      };
+      return this.buildAuthResponse(user, accessToken, refreshToken);
     } catch (error) {
       console.log(error);
       throw error;
@@ -189,24 +184,7 @@ export class AuthService {
         tokenPayload,
       );
 
-      const userData = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isDeleted: user.isDeleted,
-        isBlocked: user.isBlocked,
-        isOtpVerified: user.isOtpVerified,
-      };
-
-      return {
-        message: authMessages.LOGIN_SUCCESS,
-        data: {
-          user: userData,
-          accessToken,
-          refreshToken,
-        },
-      };
+      return this.buildAuthResponse(user, accessToken, refreshToken);
     } catch (error) {
       console.error('Google login error:', error);
       throw error;
