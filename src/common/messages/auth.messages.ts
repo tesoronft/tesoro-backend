@@ -39,4 +39,5 @@ export const authMessages = {
   SIGNUP_SUCCESS: 'User registered successfully',
   LOGIN_SUCCESS: 'Login successful',
   TOKEN_REFRESH_SUCCESS: 'Token refreshed successfully',
+  AUTH_SUCCESS: 'Authentication successful.',
 };
