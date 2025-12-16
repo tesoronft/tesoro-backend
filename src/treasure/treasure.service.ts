@@ -130,9 +130,7 @@ export class TreasureService {
           { $skip: skip },
           { $limit: limit },
         ];
-
-        const treasures = await this.treasureModel.aggregate(pipeline);
-
+        
         const totalPipeline: any = [
           {
             $geoNear: {
@@ -148,8 +146,11 @@ export class TreasureService {
           },
           { $count: 'total' },
         ];
-
-        const totalResult = await this.treasureModel.aggregate(totalPipeline);
+      
+        const [treasures, totalResult] = await Promise.all([
+          this.treasureModel.aggregate(pipeline),
+          this.treasureModel.aggregate(totalPipeline),
+        ]);
         const total = totalResult[0]?.total || 0;
 
         return {
