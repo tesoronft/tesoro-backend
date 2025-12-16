@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schema';
 import { Model, Types } from 'mongoose';
-import { UpdateUserDto } from './dto';
+import { DeleteUserDto, UpdateUserDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { Treasure } from 'src/treasure/schema';
@@ -28,7 +29,7 @@ export class UserService {
 
       const data = await this.userModel
         .findById(userId)
-        .select('_id name email role createdAt updatedAt')
+        .select('_id name email profileImage role createdAt updatedAt')
         .lean();
 
       if (!data) throw new NotFoundException('User not found');
@@ -71,7 +72,8 @@ export class UserService {
 
   async updateUser(payload: UpdateUserDto): Promise<any> {
     try {
-      const { userId, name, currentPassword, newPassword } = payload;
+      const { userId, name, profileImage, currentPassword, newPassword } =
+        payload;
 
       const user = await this.userModel.findById(userId);
       if (!user) {
@@ -98,6 +100,9 @@ export class UserService {
         user.name = name;
       }
 
+      if (profileImage) {
+        user.profileImage = profileImage;
+      }
       const updatedUser = await user.save();
 
       const obj = updatedUser.toObject();
@@ -108,8 +113,35 @@ export class UserService {
           name: obj.name,
           email: obj.email,
           role: obj.role,
+          profileImage: obj.profileImage,
         },
       };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async softDeleteUser(payload: DeleteUserDto): Promise<any> {
+    try {
+      const { userId, password } = payload;
+      const user = await this.userModel.findById(userId);
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.password) {
+        if (!password)
+          throw new BadRequestException('Password is required for this user');
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) throw new BadRequestException('Invalid password');
+      }
+
+      user.isDeleted = true;
+      await user.save();
+
+      return { message: 'User deleted successfully' };
     } catch (error) {
       console.log(error);
       throw error;

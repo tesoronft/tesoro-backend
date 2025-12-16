@@ -4,7 +4,7 @@ import { RolesGuard, AuthGuard } from 'src/common/guards';
 import { GetUser, Roles } from 'src/common/decorators';
 import { ROLE } from 'src/common/constants';
 import { User } from './schema';
-import { UpdateUserDto } from './dto';
+import { DeleteUserDto, UpdateUserDto } from './dto';
 
 @Controller('users')
 @UseGuards(AuthGuard, RolesGuard)
@@ -21,5 +21,11 @@ export class UserController {
   @Roles(ROLE.ADMIN, ROLE.USER)
   updateUser(@Body() payload: UpdateUserDto) {
     return this.userService.updateUser(payload);
+  }
+
+  @Post('delete')
+  @Roles(ROLE.ADMIN, ROLE.USER)
+  async deleteUser(@Body() payload: DeleteUserDto) {
+    return await this.userService.softDeleteUser(payload);
   }
 }

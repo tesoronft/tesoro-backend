@@ -13,6 +13,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  profileImage?: string;
+
+  @IsOptional()
+  @IsString()
   @Transform(({ value }) => value.trim())
   currentPassword;
 

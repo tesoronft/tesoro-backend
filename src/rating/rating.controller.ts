@@ -10,7 +10,7 @@ import { ROLE } from 'src/common/constants';
 export class RatingController {
   constructor(private readonly ratingService: RatingService) {}
 
-  @Post()
+  @Post('create')
   @Roles(ROLE.ADMIN, ROLE.USER)
   createRating(@Body() payload: CreateRatingDto) {
     return this.ratingService.createRating(payload);

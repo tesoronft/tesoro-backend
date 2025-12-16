@@ -16,6 +16,9 @@ export class User extends Document {
   @Prop({ enum: ROLE, type: String, default: ROLE.USER })
   role: ROLE;
 
+  @Prop({ type: String, default: null })
+  profileImage: string | null;
+
   @Prop({ default: false })
   isDeleted: boolean;
 

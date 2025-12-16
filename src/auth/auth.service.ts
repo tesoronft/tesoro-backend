@@ -38,8 +38,7 @@ export class AuthService {
     private readonly emailService: EmailService,
   ) {}
 
-
-    private buildAuthResponse(user, accessToken: string, refreshToken: string) {
+  private buildAuthResponse(user, accessToken: string, refreshToken: string) {
     return {
       message: authMessages.AUTH_SUCCESS,
       data: {
@@ -48,6 +47,7 @@ export class AuthService {
           name: user.name,
           email: user.email,
           role: user.role,
+          profileImage: user.profileImage,
           isDeleted: user.isDeleted,
           isBlocked: user.isBlocked,
           createdAt: user.createdAt,

@@ -52,10 +52,59 @@ export class TreasureService {
   async getTreasureDetail(payload: GetTreasureDto): Promise<any> {
     try {
       const { treasureId } = payload;
-      const treasure = await this.treasureModel.findById(treasureId);
-      if (!treasure) throw new NotFoundException('Treasure not found');
+      const result = await this.treasureModel.aggregate([
+        { $match: { _id: new Types.ObjectId(treasureId) } },
 
-      return treasure;
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'postedBy',
+            foreignField: '_id',
+            as: 'postedByInfo',
+          },
+        },
+        { $unwind: '$postedByInfo' },
+
+        {
+          $lookup: {
+            from: 'ratings',
+            let: { userId: '$postedByInfo._id' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$user', '$$userId'] } } },
+              {
+                $group: {
+                  _id: '$user',
+                  averageRating: { $avg: '$rate' },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            as: 'ratingInfo',
+          },
+        },
+        {
+          $addFields: {
+            postedBy: {
+              _id: '$postedByInfo._id',
+              name: '$postedByInfo.name',
+              profileImage: '$postedByInfo.profileImage',
+              rating: {
+                $ifNull: [
+                  { $arrayElemAt: ['$ratingInfo.averageRating', 0] },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+
+        { $project: { postedByInfo: 0, ratingInfo: 0 } },
+      ]);
+
+      if (!result || result.length === 0)
+        throw new NotFoundException('Treasure not found');
+
+      return result[0];
     } catch (error) {
       console.log(error);
       throw error;
@@ -78,10 +127,16 @@ export class TreasureService {
 
       const skip = (page - 1) * limit;
 
-      const filter: any = {};
+      /* -------------------- BASE FILTER -------------------- */
+      const filter: any = {
+        isDeleted: { $ne: true },
+      };
 
       if (scope === TreasureScope.MINE) {
         filter.postedBy = new Types.ObjectId(user._id);
+      } else {
+        // 🔥 Exclude current user's treasures
+        filter.postedBy = { $ne: new Types.ObjectId(user._id) };
       }
 
       if (category) filter.category = new Types.ObjectId(category);
@@ -89,31 +144,83 @@ export class TreasureService {
 
       if (searchBy?.trim()) {
         const regex = { $regex: searchBy.trim(), $options: 'i' };
-
-        const conditions: any[] = [
+        filter.$or = [
           { title: regex },
           { brand: regex },
           { type: regex },
           { itemModel: regex },
           { description: regex },
         ];
-
-        if (Types.ObjectId.isValid(searchBy)) {
-          conditions.push({ _id: new Types.ObjectId(searchBy) });
-        }
-
-        filter.$or = conditions;
       }
 
+      /* -------------------- COMMON PIPELINE -------------------- */
+      const basePipeline: any[] = [
+        { $match: filter },
+
+        // Join user
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'postedBy',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+
+        // Join rating
+        {
+          $lookup: {
+            from: 'ratings',
+            let: { userId: '$user._id' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$user', '$$userId'] } } },
+              {
+                $group: {
+                  _id: '$user',
+                  avgRating: { $avg: '$rate' },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            as: 'rating',
+          },
+        },
+
+        // Build postedBy object
+        {
+          $addFields: {
+            postedBy: {
+              _id: '$user._id',
+              name: '$user.name',
+              profileImage: '$user.profileImage',
+              rating: {
+                $ifNull: [{ $arrayElemAt: ['$rating.avgRating', 0] }, 0],
+              },
+            },
+          },
+        },
+
+        // Cleanup
+        {
+          $project: {
+            user: 0,
+            rating: 0,
+            __v: 0,
+          },
+        },
+      ];
+
+      /* -------------------- GEO QUERY -------------------- */
       const useGeo =
         longitude !== undefined &&
         latitude !== undefined &&
         distance !== undefined;
 
       if (useGeo) {
-        const distanceInMeters = distance * 1000;
+        const distanceInMeters = distance * 1609.34;   //In miles.if km then 1000
 
-        const pipeline: any[] = [
+        const pipeline = [
           {
             $geoNear: {
               near: {
@@ -126,12 +233,13 @@ export class TreasureService {
               query: filter,
             },
           },
+          ...basePipeline.slice(1),
           { $sort: { createdAt: -1 } },
           { $skip: skip },
           { $limit: limit },
         ];
-        
-        const totalPipeline: any = [
+
+        const countPipeline:any = [
           {
             $geoNear: {
               near: {
@@ -146,11 +254,12 @@ export class TreasureService {
           },
           { $count: 'total' },
         ];
-      
+
         const [treasures, totalResult] = await Promise.all([
           this.treasureModel.aggregate(pipeline),
-          this.treasureModel.aggregate(totalPipeline),
+          this.treasureModel.aggregate(countPipeline),
         ]);
+
         const total = totalResult[0]?.total || 0;
 
         return {
@@ -164,16 +273,22 @@ export class TreasureService {
         };
       }
 
-      const [treasures, total] = await Promise.all([
-        this.treasureModel
-          .find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
+      /* -------------------- NON-GEO QUERY -------------------- */
+      const pipeline = [
+        ...basePipeline,
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ];
 
-        this.treasureModel.countDocuments(filter),
+      const countPipeline = [{ $match: filter }, { $count: 'total' }];
+
+      const [treasures, totalResult] = await Promise.all([
+        this.treasureModel.aggregate(pipeline),
+        this.treasureModel.aggregate(countPipeline),
       ]);
+
+      const total = totalResult[0]?.total || 0;
 
       return {
         treasures,

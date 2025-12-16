@@ -10,6 +10,8 @@ import { TreasureModule } from './treasure/treasure.module';
 import { CategoryModule } from './category/category.module';
 import { RatingModule } from './rating/rating.module';
 import { TipModule } from './tip/tip.module';
+import { RevenuecatModule } from './revenuecat/revenuecat.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { TipModule } from './tip/tip.module';
     CategoryModule,
     RatingModule,
     TipModule,
+    RevenuecatModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
