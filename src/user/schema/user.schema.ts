@@ -25,6 +25,9 @@ export class User extends Document {
   @Prop({ default: false })
   isBlocked: boolean;
 
+  @Prop({ default: false })
+  isPremium: boolean;
+
   @Prop({ type: String, default: null })
   otp: string | null;
 

@@ -7,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schema';
 import { Model, Types } from 'mongoose';
-import { DeleteUserDto, UpdateUserDto } from './dto';
+import { DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { Treasure } from 'src/treasure/schema';
@@ -144,6 +144,52 @@ export class UserService {
       return { message: 'User deleted successfully' };
     } catch (error) {
       console.log(error);
+      throw error;
+    }
+  }
+
+  async getAllUsers(query: GetUsersQueryDto) {
+    try {
+      const { page = 1, limit = 15, search, isPremium } = query;
+
+      const skip = (page - 1) * limit;
+
+      const filter: any = { isDeleted: false };
+
+      // 🔍 Search by name OR email
+      if (search?.trim()) {
+        const regex = { $regex: search.trim(), $options: 'i' };
+        filter.$or = [{ name: regex }, { email: regex }];
+      }
+
+      // ⭐ Premium filter
+      if (isPremium === 'true') {
+        filter.isPremium = true;
+      }
+
+      const [users, total] = await Promise.all([
+        this.userModel
+          .find(filter)
+          .select('name email isPremium isBlocked isDeleted createdAt')
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 })
+          .lean(),
+
+        this.userModel.countDocuments(filter),
+      ]);
+
+      return {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      console.error(error);
       throw error;
     }
   }

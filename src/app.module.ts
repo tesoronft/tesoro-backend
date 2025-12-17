@@ -12,6 +12,7 @@ import { RatingModule } from './rating/rating.module';
 import { TipModule } from './tip/tip.module';
 import { RevenuecatModule } from './revenuecat/revenuecat.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
     TipModule,
     RevenuecatModule,
     SubscriptionModule,
+    ContentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

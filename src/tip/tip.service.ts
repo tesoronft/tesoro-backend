@@ -3,7 +3,7 @@ import { CreateTipDto } from './dto/create-tip.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Tip } from './schema';
 import { Model, Types } from 'mongoose';
-import { GetTipDto } from './dto';
+import { GetTipDto, GetTipsQueryDto } from './dto';
 
 @Injectable()
 export class TipService {
@@ -109,6 +109,100 @@ export class TipService {
       };
     } catch (error) {
       console.log(error);
+      throw error;
+    }
+  }
+
+  async getAllTips(query: GetTipsQueryDto) {
+    try {
+      const { page = 1, limit = 15 } = query;
+      const skip = (page - 1) * limit;
+
+      const pipeline: any = [
+        // Given user
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'givenUser',
+            foreignField: '_id',
+            as: 'givenUser',
+          },
+        },
+        { $unwind: '$givenUser' },
+
+        // Received user
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'receivedUser',
+            foreignField: '_id',
+            as: 'receivedUser',
+          },
+        },
+        { $unwind: '$receivedUser' },
+
+        // Treasure
+        {
+          $lookup: {
+            from: 'treasures',
+            localField: 'treasure',
+            foreignField: '_id',
+            as: 'treasure',
+          },
+        },
+        { $unwind: '$treasure' },
+
+        // Shape response
+        {
+          $project: {
+            amount: 1,
+            createdAt: 1,
+
+            givenUser: {
+              _id: '$givenUser._id',
+              name: '$givenUser.name',
+              email: '$givenUser.email',
+            },
+
+            receivedUser: {
+              _id: '$receivedUser._id',
+              name: '$receivedUser.name',
+              email: '$receivedUser.email',
+            },
+
+            treasure: {
+              _id: '$treasure._id',
+              title: '$treasure.title',
+            },
+          },
+        },
+
+        { $sort: { createdAt: -1 } },
+
+        {
+          $facet: {
+            items: [{ $skip: skip }, { $limit: limit }],
+            totalCount: [{ $count: 'total' }],
+          },
+        },
+      ];
+
+      const result = await this.tipModel.aggregate(pipeline);
+
+      const items = result[0]?.items || [];
+      const total = result[0]?.totalCount[0]?.total || 0;
+
+      return {
+        items,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      console.error(error);
       throw error;
     }
   }

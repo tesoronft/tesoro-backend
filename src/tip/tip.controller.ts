@@ -1,11 +1,7 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
-  Patch,
-  Param,
-  Delete,
   UseGuards,
   Query,
   UsePipes,
@@ -15,7 +11,7 @@ import { CreateTipDto } from './dto/create-tip.dto';
 import { AuthGuard, RolesGuard } from 'src/common/guards';
 import { Roles } from 'src/common/decorators';
 import { ROLE } from 'src/common/constants';
-import { GetTipDto } from './dto';
+import { GetTipDto, GetTipsQueryDto } from './dto';
 import { DefaultPaginationPipe } from 'src/common/validations';
 
 @Controller('tips')
@@ -41,5 +37,12 @@ export class TipController {
   @UsePipes(DefaultPaginationPipe)
   async getReceivedTips(@Query() query, @Body() payload: GetTipDto) {
     return this.tipService.getReceivedTips(query, payload);
+  }
+
+  @Post('all')
+  @Roles(ROLE.ADMIN)
+  @UsePipes(DefaultPaginationPipe)
+  async getAllTips(@Query() query: GetTipsQueryDto) {
+    return this.tipService.getAllTips(query);
   }
 }

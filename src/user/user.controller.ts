@@ -1,10 +1,18 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Query,
+  UsePipes,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { RolesGuard, AuthGuard } from 'src/common/guards';
 import { GetUser, Roles } from 'src/common/decorators';
 import { ROLE } from 'src/common/constants';
 import { User } from './schema';
-import { DeleteUserDto, UpdateUserDto } from './dto';
+import { DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
+import { DefaultPaginationPipe } from 'src/common/validations';
 
 @Controller('users')
 @UseGuards(AuthGuard, RolesGuard)
@@ -27,5 +35,12 @@ export class UserController {
   @Roles(ROLE.ADMIN, ROLE.USER)
   async deleteUser(@Body() payload: DeleteUserDto) {
     return await this.userService.softDeleteUser(payload);
+  }
+
+  @Post('all')
+  @Roles(ROLE.ADMIN)
+  @UsePipes(DefaultPaginationPipe)
+  async getAllUsers(@Query() query: GetUsersQueryDto) {
+    return this.userService.getAllUsers(query);
   }
 }
