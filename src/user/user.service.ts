@@ -7,11 +7,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schema';
 import { Model, Types } from 'mongoose';
-import { DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
+import { CreateUserDto, DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { Treasure } from 'src/treasure/schema';
 import { Tip } from 'src/tip/schema';
+import { ROLE } from 'src/common/constants';
 
 @Injectable()
 export class UserService {
@@ -20,7 +21,37 @@ export class UserService {
     @InjectModel(Treasure.name) private treasureModel: Model<Treasure>,
     @InjectModel(Tip.name) private tipModel: Model<Tip>,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
+
+  async createUser(payload: CreateUserDto): Promise<any> {
+    try {
+      const { email, password, role } = payload;
+      const userExists = await this.userModel.findOne({ email });
+      if (userExists) {
+        throw new BadRequestException('User already exists');
+      }
+
+      const saltRounds = parseInt(this.config.get('SALT_ROUNDS') || '10');
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      const newUser = await this.userModel.create({
+        ...payload,
+        password: hashedPassword,
+        role: role || ROLE.USER,
+      });
+
+      const obj = newUser.toObject();
+      const { password: _p, ...result } = obj;
+
+      return {
+        message: 'User created successfully',
+        data: result,
+      };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
 
   async getProfile(payload: User): Promise<any> {
     try {
@@ -72,8 +103,15 @@ export class UserService {
 
   async updateUser(payload: UpdateUserDto): Promise<any> {
     try {
-      const { userId, name, profileImage, currentPassword, newPassword } =
-        payload;
+      const {
+        userId,
+        name,
+        profileImage,
+        currentPassword,
+        newPassword,
+        isBlocked,
+        isDeleted,
+      } = payload;
 
       const user = await this.userModel.findById(userId);
       if (!user) {
@@ -100,6 +138,14 @@ export class UserService {
         user.name = name;
       }
 
+      if (isBlocked === true || isBlocked === false) {
+        user.isBlocked = isBlocked;
+      }
+
+      if (isDeleted === true || isDeleted === false) {
+        user.isDeleted = isDeleted;
+      }
+
       if (profileImage) {
         user.profileImage = profileImage;
       }
@@ -114,6 +160,8 @@ export class UserService {
           email: obj.email,
           role: obj.role,
           profileImage: obj.profileImage,
+          isBlocked: obj.isBlocked,
+          isDeleted: obj.isDeleted,
         },
       };
     } catch (error) {
@@ -170,7 +218,7 @@ export class UserService {
       const [users, total] = await Promise.all([
         this.userModel
           .find(filter)
-          .select('name email isPremium isBlocked isDeleted createdAt')
+          .select('name email profileImage isPremium isBlocked isDeleted createdAt')
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 })

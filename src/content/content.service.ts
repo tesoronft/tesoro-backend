@@ -84,7 +84,7 @@ export class ContentService {
 
       const [items, total] = await Promise.all([
         this.contentModel
-          .find({}, { name: 1, createdAt: 1 })
+          .find({}, { name: 1, createdAt: 1, updatedAt: 1 })
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 })

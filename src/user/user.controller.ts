@@ -11,7 +11,7 @@ import { RolesGuard, AuthGuard } from 'src/common/guards';
 import { GetUser, Roles } from 'src/common/decorators';
 import { ROLE } from 'src/common/constants';
 import { User } from './schema';
-import { DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
+import { CreateUserDto, DeleteUserDto, GetUsersQueryDto, UpdateUserDto } from './dto';
 import { DefaultPaginationPipe } from 'src/common/validations';
 
 @Controller('users')
@@ -19,6 +19,12 @@ import { DefaultPaginationPipe } from 'src/common/validations';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Post('create')
+  @Roles(ROLE.ADMIN)
+  createUser(@Body() payload: CreateUserDto) {
+    return this.userService.createUser(payload);
+  }
+  
   @Post('me')
   @Roles(ROLE.ADMIN, ROLE.USER)
   getProfile(@GetUser() user: User) {

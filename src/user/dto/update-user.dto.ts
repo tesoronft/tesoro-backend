@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 export class UpdateUserDto {
   @IsNotEmpty()
   @IsMongoId()
@@ -24,4 +30,12 @@ export class UpdateUserDto {
   @IsString()
   @Transform(({ value }) => value.trim())
   newPassword;
+
+  @IsOptional()
+  @IsBoolean()
+  isBlocked: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isDeleted: boolean;
 }
