@@ -305,6 +305,136 @@ export class TreasureService {
     }
   }
 
+    async getMarkers(user: User, query: GetTreasuresQueryDto): Promise<any> {
+    try {
+      const {
+        page = 1,
+        limit = 15,
+        longitude,
+        latitude,
+        distance,
+        scope = TreasureScope.ALL,
+      } = query;
+
+      const skip = (page - 1) * limit;
+
+      /* -------------------- BASE FILTER -------------------- */
+      const filter: any = {
+        isDeleted: { $ne: true },
+      };
+
+      if (scope === TreasureScope.MINE) {
+        filter.postedBy = new Types.ObjectId(user._id);
+      } else {
+        // 🔥 Exclude current user's treasures
+        filter.postedBy = { $ne: new Types.ObjectId(user._id) };
+      }
+
+      /* -------------------- COMMON PIPELINE -------------------- */
+      const basePipeline: any[] = [
+        { $match: filter },
+        {
+          $project: {
+            _id: 1,
+            coordinates: '$location.coordinates',
+          },
+        },
+      ];
+
+      /* -------------------- GEO QUERY -------------------- */
+      const useGeo =
+        longitude !== undefined &&
+        latitude !== undefined &&
+        distance !== undefined;
+
+      if (useGeo) {
+        const distanceInMeters = distance * 1609.34; //In miles.if km then 1000
+
+        const pipeline = [
+          {
+            $geoNear: {
+              near: {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+              },
+              distanceField: 'distance',
+              maxDistance: distanceInMeters,
+              spherical: true,
+              query: filter,
+            },
+          },
+          ...basePipeline.slice(1),
+          { $sort: { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+        ];
+
+        const countPipeline: any = [
+          {
+            $geoNear: {
+              near: {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+              },
+              distanceField: 'distance',
+              maxDistance: distanceInMeters,
+              spherical: true,
+              query: filter,
+            },
+          },
+          { $count: 'total' },
+        ];
+
+        const [markers, totalResult] = await Promise.all([
+          this.treasureModel.aggregate(pipeline),
+          this.treasureModel.aggregate(countPipeline),
+        ]);
+
+        const total = totalResult[0]?.total || 0;
+
+        return {
+          markers,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        };
+      }
+
+      /* -------------------- NON-GEO QUERY -------------------- */
+      const pipeline = [
+        ...basePipeline,
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ];
+
+      const countPipeline = [{ $match: filter }, { $count: 'total' }];
+
+      const [treasures, totalResult] = await Promise.all([
+        this.treasureModel.aggregate(pipeline),
+        this.treasureModel.aggregate(countPipeline),
+      ]);
+
+      const total = totalResult[0]?.total || 0;
+
+      return {
+        treasures,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async updateTreasure(payload: UpdateTreasureDto): Promise<any> {
     try {
       const { treasureId, location, category, ...updateFields } = payload;
