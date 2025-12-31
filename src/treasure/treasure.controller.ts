@@ -46,6 +46,13 @@ export class TreasureController {
     return this.treasureService.getAllTreasures(user, query);
   }
 
+    @Post('markers')
+  @Roles(ROLE.ADMIN, ROLE.USER)
+  @UsePipes(DefaultPaginationPipe)
+  getMarkers(@GetUser() user: User, @Query() query: GetTreasuresQueryDto) {
+    return this.treasureService.getMarkers(user, query);
+  }
+
   @Post('update')
   @Roles(ROLE.ADMIN, ROLE.USER)
   update(@Body() payload: UpdateTreasureDto) {
