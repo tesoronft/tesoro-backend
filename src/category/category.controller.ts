@@ -29,13 +29,13 @@ export class CategoryController {
   }
 
   @Post('details')
-  @Roles(ROLE.ADMIN)
+  @Roles(ROLE.ADMIN,ROLE.USER)
   getCategoryDetails(@Body() payload: CategoryDto) {
     return this.categoryService.getCategoryDetails(payload);
   }
 
   @Post('all')
-  @Roles(ROLE.ADMIN)
+  @Roles(ROLE.ADMIN,ROLE.USER)
   getAllCategories(@Query() query) {
     return this.categoryService.getAllCategories(query);
   }
