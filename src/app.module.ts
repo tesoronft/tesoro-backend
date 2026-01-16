@@ -13,6 +13,7 @@ import { TipModule } from './tip/tip.module';
 import { RevenuecatModule } from './revenuecat/revenuecat.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ContentModule } from './content/content.module';
+import { ConditionModule } from './condition/condition.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ContentModule } from './content/content.module';
     RevenuecatModule,
     SubscriptionModule,
     ContentModule,
+    ConditionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

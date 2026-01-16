@@ -147,7 +147,7 @@ export class TreasureService {
         filter.$or = [
           { title: regex },
           { brand: regex },
-          { type: regex },
+          // { type: regex },
           { itemModel: regex },
           { description: regex },
         ];

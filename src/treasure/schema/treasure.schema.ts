@@ -46,8 +46,8 @@ export class Treasure extends Document {
   @Prop({ type: String, default: '', trim: true })
   itemModel: string;
 
-  @Prop({ type: String, default: '', trim: true })
-  type: string;
+  // @Prop({ type: String, default: '', trim: true })
+  // type: string;
 
   @Prop({ type: String, default: '', trim: true })
   description: string;

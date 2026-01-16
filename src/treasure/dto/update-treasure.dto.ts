@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsMongoId,
   IsNotEmpty,
+  MaxLength,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -70,13 +71,14 @@ export class UpdateTreasureDto {
   @Transform(({ value }) => value.trim())
   itemModel?: string;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value.trim())
-  type?: string;
+  // @IsOptional()
+  // @IsString()
+  // @Transform(({ value }) => value.trim())
+  // type?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120, { message: 'Description must not exceed 120 characters' })
   @Transform(({ value }) => value.trim())
   description?: string;
 }

@@ -6,6 +6,7 @@ import {
   IsString,
   IsArray,
   IsMongoId,
+  MaxLength,
 } from 'class-validator';
 
 class LocationDto {
@@ -61,13 +62,14 @@ export class CreateTreasureDto {
   @Transform(({ value }) => value.trim())
   itemModel?: string;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value.trim())
-  type?: string;
+  // @IsOptional()
+  // @IsString()
+  // @Transform(({ value }) => value.trim())
+  // type?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120, { message: 'Description must not exceed 120 characters' })
   @Transform(({ value }) => value.trim())
   description?: string;
 }
