@@ -52,12 +52,13 @@ export class UpdateTreasureDto {
   @IsNumber()
   price?: number;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsMongoId()
+  @Transform(({ value }) => value.trim())
   category?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsNotEmpty()
+  @IsMongoId()
   @Transform(({ value }) => value.trim())
   condition?: string;
 

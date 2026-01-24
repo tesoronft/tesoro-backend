@@ -30,6 +30,7 @@ export class TreasureService {
         ...payload,
         postedBy: new Types.ObjectId(user._id),
         category: new Types.ObjectId(payload.category),
+        condition: new Types.ObjectId(payload.condition),
 
         location: {
           type: 'Point',
@@ -55,6 +56,7 @@ export class TreasureService {
       const result = await this.treasureModel.aggregate([
         { $match: { _id: new Types.ObjectId(treasureId) } },
 
+        // postedBy
         {
           $lookup: {
             from: 'users',
@@ -65,6 +67,7 @@ export class TreasureService {
         },
         { $unwind: '$postedByInfo' },
 
+        // ratings
         {
           $lookup: {
             from: 'ratings',
@@ -82,6 +85,34 @@ export class TreasureService {
             as: 'ratingInfo',
           },
         },
+
+        // category
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'category',
+            foreignField: '_id',
+            as: 'categoryInfo',
+          },
+        },
+        {
+          $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true },
+        },
+
+        // condition
+        {
+          $lookup: {
+            from: 'conditions',
+            localField: 'conditionObjId',
+            foreignField: '_id',
+            as: 'conditionInfo',
+          },
+        },
+        {
+          $unwind: { path: '$conditionInfo', preserveNullAndEmptyArrays: true },
+        },
+
+        // final shape
         {
           $addFields: {
             postedBy: {
@@ -95,10 +126,25 @@ export class TreasureService {
                 ],
               },
             },
+            category: {
+              _id: '$categoryInfo._id',
+              name: '$categoryInfo.name',
+            },
+            condition: {
+              _id: '$conditionInfo._id',
+              name: '$conditionInfo.name',
+            },
           },
         },
 
-        { $project: { postedByInfo: 0, ratingInfo: 0 } },
+        {
+          $project: {
+            postedByInfo: 0,
+            ratingInfo: 0,
+            categoryInfo: 0,
+            conditionInfo: 0,
+          },
+        },
       ]);
 
       if (!result || result.length === 0)
@@ -127,37 +173,30 @@ export class TreasureService {
 
       const skip = (page - 1) * limit;
 
-      /* -------------------- BASE FILTER -------------------- */
-      const filter: any = {
-        isDeleted: { $ne: true },
-      };
+      const filter: any = { isDeleted: { $ne: true } };
 
       if (scope === TreasureScope.MINE) {
         filter.postedBy = new Types.ObjectId(user._id);
       } else {
-        // 🔥 Exclude current user's treasures
         filter.postedBy = { $ne: new Types.ObjectId(user._id) };
       }
 
       if (category) filter.category = new Types.ObjectId(category);
-      if (condition) filter.condition = condition;
+      if (condition) filter.condition = new Types.ObjectId(condition);
 
       if (searchBy?.trim()) {
         const regex = { $regex: searchBy.trim(), $options: 'i' };
         filter.$or = [
           { title: regex },
           { brand: regex },
-          // { type: regex },
           { itemModel: regex },
           { description: regex },
         ];
       }
 
-      /* -------------------- COMMON PIPELINE -------------------- */
       const basePipeline: any[] = [
         { $match: filter },
 
-        // Join user
         {
           $lookup: {
             from: 'users',
@@ -168,7 +207,6 @@ export class TreasureService {
         },
         { $unwind: '$user' },
 
-        // Join rating
         {
           $lookup: {
             from: 'ratings',
@@ -187,7 +225,30 @@ export class TreasureService {
           },
         },
 
-        // Build postedBy object
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'category',
+            foreignField: '_id',
+            as: 'categoryInfo',
+          },
+        },
+        {
+          $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true },
+        },
+
+        {
+          $lookup: {
+            from: 'conditions',
+            localField: 'condition',
+            foreignField: '_id',
+            as: 'conditionInfo',
+          },
+        },
+        {
+          $unwind: { path: '$conditionInfo', preserveNullAndEmptyArrays: true },
+        },
+
         {
           $addFields: {
             postedBy: {
@@ -198,35 +259,40 @@ export class TreasureService {
                 $ifNull: [{ $arrayElemAt: ['$rating.avgRating', 0] }, 0],
               },
             },
+            category: {
+              _id: '$categoryInfo._id',
+              name: '$categoryInfo.name',
+            },
+            condition: {
+              _id: '$conditionInfo._id',
+              name: '$conditionInfo.name',
+            },
           },
         },
 
-        // Cleanup
         {
           $project: {
             user: 0,
             rating: 0,
+            categoryInfo: 0,
+            conditionInfo: 0,
             __v: 0,
           },
         },
       ];
 
-      /* -------------------- GEO QUERY -------------------- */
       const useGeo =
         longitude !== undefined &&
         latitude !== undefined &&
         distance !== undefined;
 
       if (useGeo) {
-        const distanceInMeters = distance * 1609.34;   //In miles.if km then 1000
+        const distanceInMeters = distance * 1609.34;
 
         const pipeline = [
           {
             $geoNear: {
-              near: {
-                type: 'Point',
-                coordinates: [longitude, latitude],
-              },
+              near: { type: 'Point', coordinates: [longitude, latitude] },
               distanceField: 'distance',
               maxDistance: distanceInMeters,
               spherical: true,
@@ -239,13 +305,10 @@ export class TreasureService {
           { $limit: limit },
         ];
 
-        const countPipeline:any = [
+        const countPipeline: any = [
           {
             $geoNear: {
-              near: {
-                type: 'Point',
-                coordinates: [longitude, latitude],
-              },
+              near: { type: 'Point', coordinates: [longitude, latitude] },
               distanceField: 'distance',
               maxDistance: distanceInMeters,
               spherical: true,
@@ -273,7 +336,6 @@ export class TreasureService {
         };
       }
 
-      /* -------------------- NON-GEO QUERY -------------------- */
       const pipeline = [
         ...basePipeline,
         { $sort: { createdAt: -1 } },
@@ -305,7 +367,7 @@ export class TreasureService {
     }
   }
 
-    async getMarkers(user: User, query: GetTreasuresQueryDto): Promise<any> {
+  async getMarkers(user: User, query: GetTreasuresQueryDto): Promise<any> {
     try {
       const {
         page = 1,
@@ -437,7 +499,8 @@ export class TreasureService {
 
   async updateTreasure(payload: UpdateTreasureDto): Promise<any> {
     try {
-      const { treasureId, location, category, ...updateFields } = payload;
+      const { treasureId, location, category, condition, ...updateFields } =
+        payload;
 
       if (location) {
         (updateFields as any).location = {
@@ -449,6 +512,9 @@ export class TreasureService {
       }
       if (category) {
         (updateFields as any).category = new Types.ObjectId(category);
+      }
+      if (condition) {
+        (updateFields as any).condition = new Types.ObjectId(condition);
       }
       const data = await this.treasureModel.findByIdAndUpdate(
         treasureId,

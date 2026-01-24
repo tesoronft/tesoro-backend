@@ -45,10 +45,11 @@ export class CreateTreasureDto {
 
   @IsNotEmpty()
   @IsMongoId()
+  @Transform(({ value }) => value.trim())
   category: string;
 
   @IsNotEmpty()
-  @IsString()
+  @IsMongoId()
   @Transform(({ value }) => value.trim())
   condition: string;
 

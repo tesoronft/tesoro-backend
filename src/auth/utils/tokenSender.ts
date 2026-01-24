@@ -19,7 +19,7 @@ export class TokenSender {
         },
         {
           secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-          expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRE_IN'),
+          // expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRE_IN'),
         },
       );
       return accessToken;
@@ -39,7 +39,7 @@ export class TokenSender {
         },
         {
           secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
-          expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRE_IN'),
+          // expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRE_IN'),
         },
       );
       return refreshToken;

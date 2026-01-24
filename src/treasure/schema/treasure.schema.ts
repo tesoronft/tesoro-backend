@@ -1,6 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Category } from 'src/category/schema';
+import { Condition } from 'src/condition/schema';
 import { User } from 'src/user/schema';
 
 export class Location {
@@ -37,8 +38,8 @@ export class Treasure extends Document {
   @Prop({ required: true })
   price: number;
 
-  @Prop({ required: true, trim: true })
-  condition: string;
+  @Prop({ type: Types.ObjectId, ref: 'Condition', required: true })
+  condition: Condition;
 
   @Prop({ type: String, default: '', trim: true })
   brand: string;

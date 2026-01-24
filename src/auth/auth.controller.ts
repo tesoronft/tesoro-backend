@@ -21,7 +21,7 @@ export class AuthController {
     return this.authService.refreshToken(payload);
   }
 
-  @Post('oauth/google')
+  @Post('google')
   async googleAuthRedirect(@Body() token: TokenDto) {
     return await this.authService.loginWithGoogle(token);
   }
