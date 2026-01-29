@@ -19,7 +19,7 @@ export class ContentService {
   constructor(
     @InjectModel(Content.name)
     private readonly contentModel: Model<Content>,
-  ) {}
+  ) { }
 
   async createContent(payload: CreateContentDto) {
     try {
@@ -69,6 +69,15 @@ export class ContentService {
       const content = await this.contentModel.findById(contentId).lean();
 
       if (!content) throw new NotFoundException('Content not found');
+
+      if (content?.content) {
+        content.content = content.content.replace(/&nbsp;/g, ' ');
+        content.content = content.content.replace(
+          /background-color:\s*[^;"]+;?/gi,
+          '',
+        );
+        content.content = content.content.replace(/color:\s*[^;"]+;?/gi, '');
+      }
 
       return content;
     } catch (error) {

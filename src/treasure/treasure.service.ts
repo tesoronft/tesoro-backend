@@ -22,7 +22,7 @@ import { CollectTreasureDto } from './dto';
 export class TreasureService {
   constructor(
     @InjectModel(Treasure.name) private treasureModel: Model<Treasure>,
-  ) {}
+  ) { }
 
   async createTreasure(user: User, payload: CreateTreasureDto): Promise<any> {
     try {
@@ -121,7 +121,9 @@ export class TreasureService {
               profileImage: '$postedByInfo.profileImage',
               rating: {
                 $ifNull: [
-                  { $arrayElemAt: ['$ratingInfo.averageRating', 0] },
+                  {
+                    $round: [{ $arrayElemAt: ['$ratingInfo.averageRating', 0] }, 1],
+                  },
                   0,
                 ],
               },
@@ -256,7 +258,10 @@ export class TreasureService {
               name: '$user.name',
               profileImage: '$user.profileImage',
               rating: {
-                $ifNull: [{ $arrayElemAt: ['$rating.avgRating', 0] }, 0],
+                $ifNull: [
+                  { $round: [{ $arrayElemAt: ['$rating.avgRating', 0] }, 1] },
+                  0,
+                ],
               },
             },
             category: {
