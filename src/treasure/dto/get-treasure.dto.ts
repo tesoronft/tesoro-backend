@@ -68,6 +68,9 @@ export class GetTreasuresQueryDto {
     message: 'scope must be either "mine" or "all"',
   })
   scope?: TreasureScope;
+
+  @IsOptional()
+  collected?: string;
 }
 export class GetCollectedTreasuresByUserDto {
   @IsNotEmpty()

@@ -122,7 +122,10 @@ export class TreasureService {
               rating: {
                 $ifNull: [
                   {
-                    $round: [{ $arrayElemAt: ['$ratingInfo.averageRating', 0] }, 1],
+                    $round: [
+                      { $arrayElemAt: ['$ratingInfo.averageRating', 0] },
+                      1,
+                    ],
                   },
                   0,
                 ],
@@ -171,11 +174,13 @@ export class TreasureService {
         latitude,
         distance,
         scope = TreasureScope.ALL,
+        collected,
       } = query;
 
       const skip = (page - 1) * limit;
 
       const filter: any = { isDeleted: { $ne: true } };
+
 
       if (scope === TreasureScope.MINE) {
         filter.postedBy = new Types.ObjectId(user._id);
@@ -185,6 +190,12 @@ export class TreasureService {
 
       if (category) filter.category = new Types.ObjectId(category);
       if (condition) filter.condition = new Types.ObjectId(condition);
+
+      if (query.collected === 'true') {
+        filter.collectedBy = { $ne: null };
+      } else if(query.collected === 'false'){
+        filter.collectedBy = null;
+      }
 
       if (searchBy?.trim()) {
         const regex = { $regex: searchBy.trim(), $options: 'i' };
