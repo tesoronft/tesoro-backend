@@ -150,7 +150,7 @@ export class AuthService {
 
   async loginWithGoogle(payload: TokenDto): Promise<any> {
     try {
-      const { email, firstName, lastName } =
+      const { email, firstName, lastName,picture } =
         await this.googleTokenService.verifyIdToken(payload.token);
 
       let user = await this.userModel.findOne({ email });
@@ -169,6 +169,7 @@ export class AuthService {
           email,
           name,
           role: ROLE.USER,
+          profileImage: picture,
         });
       }
 
