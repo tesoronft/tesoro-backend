@@ -30,10 +30,10 @@ jobs:
             echo "📁 App Dir: $APP_DIR"
 
             # Ensure folder exists
-            sudo mkdir -p $APP_DIR
-            sudo chown -R ubuntu:ubuntu $APP_DIR
+            sudo mkdir -p "$APP_DIR"
+            sudo chown -R ubuntu:ubuntu "$APP_DIR"
 
-            cd $APP_DIR
+            cd "$APP_DIR"
 
             # If .git does not exist, clean folder and clone
             if [ ! -d ".git" ]; then
@@ -45,22 +45,23 @@ jobs:
                 cp .env /tmp/tesoro.env.backup
               fi
 
-              # Clean folder
-              rm -rf $APP_DIR/* || true
-              rm -rf $APP_DIR/.* 2>/dev/null || true
+              # Clean folder (safe)
+              rm -rf "$APP_DIR"/* || true
+              rm -rf "$APP_DIR"/.??* 2>/dev/null || true
 
               # Restore .env if existed
               if [ -f "/tmp/tesoro.env.backup" ]; then
-                mv /tmp/tesoro.env.backup $APP_DIR/.env
+                mv /tmp/tesoro.env.backup "$APP_DIR/.env"
                 echo "✅ .env restored"
               fi
 
               # Clone
-              git clone -b $BRANCH $REPO_SSH .
+              git clone -b "$BRANCH" "$REPO_SSH" .
             else
               echo "✅ Repo already exists. Pulling latest code..."
-              git fetch --all
-              git reset --hard origin/$BRANCH
+              git fetch origin
+              git checkout "$BRANCH"
+              git reset --hard "origin/$BRANCH"
             fi
 
             echo "📦 Installing dependencies..."
@@ -68,6 +69,9 @@ jobs:
 
             echo "🏗️ Building NestJS..."
             npm run build
+
+            # Ensure pm2 exists in PATH
+            export PATH=$PATH:/usr/local/bin
 
             echo "🚀 Restarting with PM2..."
             pm2 restart tesoro-backend || pm2 start dist/main.js --name tesoro-backend
