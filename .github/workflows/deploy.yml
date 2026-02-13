@@ -70,7 +70,7 @@ jobs:
             npm run build
 
             echo "🚀 Restarting with PM2..."
-            pm2 restart nest-backend || pm2 start dist/main.js --name nest-backend
+            pm2 restart tesoro-backend || pm2 start dist/main.js --name tesoro-backend
 
             echo "💾 Saving PM2 process..."
             pm2 save
