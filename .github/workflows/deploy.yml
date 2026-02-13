@@ -20,7 +20,7 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            set -e
+            set -euxo pipefail
 
             APP_DIR="/var/www/tesoro-backend"
             REPO_SSH="git@github.com:tesoronft/tesoro-backend.git"
