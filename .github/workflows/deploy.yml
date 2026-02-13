@@ -31,7 +31,7 @@ jobs:
 
             # Ensure folder exists
             sudo mkdir -p "$APP_DIR"
-            sudo chown -R ubuntu:ubuntu "$APP_DIR"
+            sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} "$APP_DIR"
 
             cd "$APP_DIR"
 
