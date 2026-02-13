@@ -1,12 +1,13 @@
-name: Deploy NestJS to EC2
+name: Deploy Tesoro Backend (NestJS) to EC2
 
 on:
   push:
     branches:
-      - main # Jab main branch me push ho, workflow trigger ho
+      - main
 
 jobs:
   deploy:
+    name: Deploy to EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -16,21 +17,62 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
           script: |
-            cd /var/www/tesoro-backend || exit 1
+            set -e
 
-            # Clone if first time
+            APP_DIR="/var/www/tesoro-backend"
+            REPO_SSH="git@github.com:tesoronft/tesoro-backend.git"
+            BRANCH="main"
+
+            echo "✅ Deploy started..."
+            echo "📁 App Dir: $APP_DIR"
+
+            # Ensure folder exists
+            sudo mkdir -p $APP_DIR
+            sudo chown -R ubuntu:ubuntu $APP_DIR
+
+            cd $APP_DIR
+
+            # If .git does not exist, clean folder and clone
             if [ ! -d ".git" ]; then
-              git clone git@github.com:tesoronft/tesoro-backend.git .
+              echo "⚠️ No .git found. Doing fresh clone..."
+
+              # IMPORTANT: do NOT delete .env if it exists
+              if [ -f ".env" ]; then
+                echo "🔐 .env found, keeping it safe..."
+                cp .env /tmp/tesoro.env.backup
+              fi
+
+              # Clean folder
+              rm -rf $APP_DIR/* || true
+              rm -rf $APP_DIR/.* 2>/dev/null || true
+
+              # Restore .env if existed
+              if [ -f "/tmp/tesoro.env.backup" ]; then
+                mv /tmp/tesoro.env.backup $APP_DIR/.env
+                echo "✅ .env restored"
+              fi
+
+              # Clone
+              git clone -b $BRANCH $REPO_SSH .
             else
+              echo "✅ Repo already exists. Pulling latest code..."
               git fetch --all
-              git reset --hard origin/main
+              git reset --hard origin/$BRANCH
             fi
 
-            # Install dependencies & build
-            npm install
+            echo "📦 Installing dependencies..."
+            npm ci
+
+            echo "🏗️ Building NestJS..."
             npm run build
 
-            # Restart backend with PM2
+            echo "🚀 Restarting with PM2..."
             pm2 restart nest-backend || pm2 start dist/main.js --name nest-backend
+
+            echo "💾 Saving PM2 process..."
             pm2 save
+
+            echo "🎉 Deploy completed successfully!"
