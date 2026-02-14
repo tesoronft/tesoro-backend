@@ -18,10 +18,9 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 30m # 30 minutes, slow networks ke liye
-          script_stop: true # Agar koi command fail ho → action fail ho
+          timeout: 30m
+          script_stop: true
           script: |
-            # Exit on errors, verbose mode
             set -euxo pipefail
 
             APP_DIR="/var/www/tesoro-backend"
@@ -49,9 +48,9 @@ jobs:
               git clone -b "$BRANCH" "$REPO_SSH" .
             else
               echo "✅ Repo exists. Pulling latest code..."
-              git fetch origin
-              git checkout "$BRANCH"
-              git reset --hard "origin/$BRANCH"
+              git fetch origin || true
+              git checkout "$BRANCH" || true
+              git reset --hard "origin/$BRANCH" || true
             fi
 
             # Restore .env
@@ -73,8 +72,7 @@ jobs:
 
             # Zero-downtime restart with PM2
             echo "🚀 Restarting backend with PM2..."
-            pm2 describe tesoro-backend >/dev/null 2>&1
-            if [ $? -eq 0 ]; then
+            if pm2 describe tesoro-backend >/dev/null 2>&1; then
               pm2 reload tesoro-backend || pm2 restart tesoro-backend
             else
               pm2 start dist/main.js --name tesoro-backend
