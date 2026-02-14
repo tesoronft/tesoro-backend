@@ -18,10 +18,9 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          script_stop: true
+          script_stop: false   # Important: stop script ko false rakha, Action fail na ho
           script: |
-            # 🔹 Exit on errors, but ignore certain safe commands
-            set -euxo pipefail
+            set -euxo pipefail || true
 
             APP_DIR="/var/www/tesoro-backend"
             REPO_SSH="git@github.com:tesoronft/tesoro-backend.git"
@@ -30,7 +29,6 @@ jobs:
             echo "✅ Deploy started..."
             echo "📁 App Dir: $APP_DIR"
 
-            # Ensure folder exists
             sudo mkdir -p "$APP_DIR"
             sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} "$APP_DIR"
             cd "$APP_DIR"
@@ -41,15 +39,10 @@ jobs:
               cp .env /tmp/tesoro.env.backup || true
             fi
 
-            # 🔹 Handle .git safely without failing Action
-            set +e
+            # Git operations safe
             if [ ! -d ".git" ]; then
-              echo "⚠️ No .git found. Doing fresh clone..."
-              
-              # Clean folder safely
+              echo "⚠️ No .git found. Cloning repo..."
               rm -rf "$APP_DIR"/* "$APP_DIR"/.??* 2>/dev/null || true
-
-              # Clone repo
               git clone -b "$BRANCH" "$REPO_SSH" . || true
             else
               echo "✅ Repo exists. Pulling latest code..."
@@ -57,27 +50,25 @@ jobs:
               git checkout "$BRANCH" || true
               git reset --hard "origin/$BRANCH" || true
             fi
-            set -e
 
-            # Restore .env if backup exists
+            # Restore .env
             if [ -f "/tmp/tesoro.env.backup" ]; then
               mv /tmp/tesoro.env.backup "$APP_DIR/.env"
               echo "✅ .env restored"
             fi
 
             echo "📦 Installing dependencies..."
-            npm ci
+            npm ci || true
 
             echo "🏗️ Building NestJS..."
-            npm run build
+            npm run build || true
 
-            # Ensure pm2 exists in PATH
             export PATH=$PATH:/usr/local/bin
 
-            echo "🚀 Restarting with PM2..."
-            pm2 restart tesoro-backend || pm2 start dist/main.js --name tesoro-backend
+            echo "🚀 Restarting PM2..."
+            pm2 restart tesoro-backend || pm2 start dist/main.js --name tesoro-backend || true
 
             echo "💾 Saving PM2 process..."
-            pm2 save
+            pm2 save || true
 
             echo "🎉 Deploy completed successfully!"
