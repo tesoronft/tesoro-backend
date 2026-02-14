@@ -18,7 +18,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 1800 # 30 minutes, slow networks ke liye
+          timeout: 30m # 30 minutes, slow networks ke liye
           script_stop: true # Agar koi command fail ho → action fail ho
           script: |
             # Exit on errors, verbose mode
