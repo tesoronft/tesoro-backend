@@ -39,34 +39,34 @@ jobs:
             # Backup .env safely
             if [ -f ".env" ]; then
               echo "🔐 .env found, backing up..."
-              cp .env /tmp/tesoro.env.backup || true
+              cp .env /tmp/tesoro.env.backup
             fi
 
             # Clone repo if missing, otherwise pull latest
             if [ ! -d ".git" ]; then
               echo "⚠️ No .git found. Fresh clone..."
-              rm -rf "$APP_DIR"/* "$APP_DIR"/.??* 2>/dev/null || true
-              git clone -b "$BRANCH" "$REPO_SSH" . || true
+              rm -rf "$APP_DIR"/* "$APP_DIR"/.??* 2>/dev/null
+              git clone -b "$BRANCH" "$REPO_SSH" .
             else
               echo "✅ Repo exists. Pulling latest code..."
-              git fetch origin || true
-              git checkout "$BRANCH" || true
-              git reset --hard "origin/$BRANCH" || true
+              git fetch origin
+              git checkout "$BRANCH"
+              git reset --hard "origin/$BRANCH"
             fi
 
             # Restore .env
             if [ -f "/tmp/tesoro.env.backup" ]; then
-              mv /tmp/tesoro.env.backup "$APP_DIR/.env" || true
+              mv /tmp/tesoro.env.backup "$APP_DIR/.env"
               echo "✅ .env restored"
             fi
 
             # Install dependencies optimized for slow networks
             echo "📦 Installing dependencies..."
-            npm ci --prefer-offline --no-audit --progress=false || true
+            npm ci --prefer-offline --no-audit --progress=false
 
             # Build NestJS
             echo "🏗️ Building NestJS..."
-            npm run build || true
+            npm run build
 
             # Add PM2 to PATH
             export PATH=$PATH:/usr/local/bin
@@ -74,10 +74,10 @@ jobs:
             # Zero-downtime restart with PM2
             echo "🚀 Restarting backend with PM2..."
             if pm2 describe tesoro-backend >/dev/null 2>&1; then
-              pm2 reload tesoro-backend || pm2 restart tesoro-backend || true
+              pm2 reload tesoro-backend || pm2 restart tesoro-backend
             else
-              pm2 start dist/main.js --name tesoro-backend || true
+              pm2 start dist/main.js --name tesoro-backend
             fi
 
-            pm2 save || true
+            pm2 save
             echo "🎉 Deploy completed successfully!"
