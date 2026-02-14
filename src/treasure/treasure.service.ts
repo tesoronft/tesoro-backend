@@ -112,6 +112,37 @@ export class TreasureService {
           $unwind: { path: '$conditionInfo', preserveNullAndEmptyArrays: true },
         },
 
+        // collectedBy
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'collectedBy',
+            foreignField: '_id',
+            as: 'collectedByInfo',
+          },
+        },
+        {
+          $unwind: { path: '$collectedByInfo', preserveNullAndEmptyArrays: true },
+        },
+        // collectedBy ratings
+        {
+          $lookup: {
+            from: 'ratings',
+            let: { userId: '$collectedByInfo._id' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$user', '$$userId'] } } },
+              {
+                $group: {
+                  _id: '$user',
+                  averageRating: { $avg: '$rate' },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            as: 'collectedByRatingInfo',
+          },
+        },
+
         // final shape
         {
           $addFields: {
@@ -131,6 +162,28 @@ export class TreasureService {
                 ],
               },
             },
+            collectedBy: {
+              $cond: {
+                if: { $ifNull: ['$collectedBy', false] },
+                then: { // Only populate if collectedBy exists
+                  _id: '$collectedByInfo._id',
+                  name: '$collectedByInfo.name',
+                  profileImage: '$collectedByInfo.profileImage',
+                  rating: {
+                    $ifNull: [
+                      {
+                        $round: [
+                          { $arrayElemAt: ['$collectedByRatingInfo.averageRating', 0] },
+                          1,
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                },
+                else: null,
+              },
+            },
             category: {
               _id: '$categoryInfo._id',
               name: '$categoryInfo.name',
@@ -148,6 +201,8 @@ export class TreasureService {
             ratingInfo: 0,
             categoryInfo: 0,
             conditionInfo: 0,
+            collectedByInfo: 0,
+            collectedByRatingInfo: 0,
           },
         },
       ]);
@@ -193,7 +248,7 @@ export class TreasureService {
 
       if (query.collected === 'true') {
         filter.collectedBy = { $ne: null };
-      } else if(query.collected === 'false'){
+      } else if (query.collected === 'false') {
         filter.collectedBy = null;
       }
 
@@ -262,6 +317,37 @@ export class TreasureService {
           $unwind: { path: '$conditionInfo', preserveNullAndEmptyArrays: true },
         },
 
+        // collectedBy
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'collectedBy',
+            foreignField: '_id',
+            as: 'collectedByInfo',
+          },
+        },
+        {
+          $unwind: { path: '$collectedByInfo', preserveNullAndEmptyArrays: true },
+        },
+        // collectedBy ratings
+        {
+          $lookup: {
+            from: 'ratings',
+            let: { userId: '$collectedByInfo._id' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$user', '$$userId'] } } },
+              {
+                $group: {
+                  _id: '$user',
+                  averageRating: { $avg: '$rate' },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            as: 'collectedByRatingInfo',
+          },
+        },
+
         {
           $addFields: {
             postedBy: {
@@ -283,6 +369,28 @@ export class TreasureService {
               _id: '$conditionInfo._id',
               name: '$conditionInfo.name',
             },
+            collectedBy: {
+              $cond: {
+                if: { $ifNull: ['$collectedBy', false] },
+                then: { // Only populate if collectedBy exists
+                  _id: '$collectedByInfo._id',
+                  name: '$collectedByInfo.name',
+                  profileImage: '$collectedByInfo.profileImage',
+                  rating: {
+                    $ifNull: [
+                      {
+                        $round: [
+                          { $arrayElemAt: ['$collectedByRatingInfo.averageRating', 0] },
+                          1,
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                },
+                else: null,
+              },
+            },
           },
         },
 
@@ -292,6 +400,8 @@ export class TreasureService {
             rating: 0,
             categoryInfo: 0,
             conditionInfo: 0,
+            collectedByInfo: 0,
+            collectedByRatingInfo: 0,
             __v: 0,
           },
         },
@@ -397,16 +507,26 @@ export class TreasureService {
       const skip = (page - 1) * limit;
 
       /* -------------------- BASE FILTER -------------------- */
-      const filter: any = {
-        isDeleted: { $ne: true },
-      };
+      const filterConditions: any[] = [
+        { isDeleted: { $ne: true } },
+      ];
 
       if (scope === TreasureScope.MINE) {
-        filter.postedBy = new Types.ObjectId(user._id);
+        filterConditions.push({ postedBy: new Types.ObjectId(user._id) });
       } else {
         // 🔥 Exclude current user's treasures
-        filter.postedBy = { $ne: new Types.ObjectId(user._id) };
+        filterConditions.push({ postedBy: { $ne: new Types.ObjectId(user._id) } });
       }
+
+      // Only return treasures that are not collected (collectedBy is null or doesn't exist)
+      filterConditions.push({
+        $or: [
+          { collectedBy: null },
+          { collectedBy: { $exists: false } }
+        ]
+      });
+
+      const filter: any = { $and: filterConditions };
 
       /* -------------------- COMMON PIPELINE -------------------- */
       const basePipeline: any[] = [
