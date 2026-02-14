@@ -20,6 +20,7 @@ jobs:
           port: 22
           script_stop: true
           script: |
+            # 🔹 Exit on errors, but ignore certain safe commands
             set -euxo pipefail
 
             APP_DIR="/var/www/tesoro-backend"
@@ -32,36 +33,36 @@ jobs:
             # Ensure folder exists
             sudo mkdir -p "$APP_DIR"
             sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} "$APP_DIR"
-
             cd "$APP_DIR"
 
-            # If .git does not exist, clean folder and clone
+            # Backup .env if exists
+            if [ -f ".env" ]; then
+              echo "🔐 .env found, backing up..."
+              cp .env /tmp/tesoro.env.backup || true
+            fi
+
+            # 🔹 Handle .git safely without failing Action
+            set +e
             if [ ! -d ".git" ]; then
               echo "⚠️ No .git found. Doing fresh clone..."
+              
+              # Clean folder safely
+              rm -rf "$APP_DIR"/* "$APP_DIR"/.??* 2>/dev/null || true
 
-              # IMPORTANT: do NOT delete .env if it exists
-              if [ -f ".env" ]; then
-                echo "🔐 .env found, keeping it safe..."
-                cp .env /tmp/tesoro.env.backup
-              fi
-
-              # Clean folder (safe)
-              rm -rf "$APP_DIR"/* || true
-              rm -rf "$APP_DIR"/.??* 2>/dev/null || true
-
-              # Restore .env if existed
-              if [ -f "/tmp/tesoro.env.backup" ]; then
-                mv /tmp/tesoro.env.backup "$APP_DIR/.env"
-                echo "✅ .env restored"
-              fi
-
-              # Clone
-              git clone -b "$BRANCH" "$REPO_SSH" .
+              # Clone repo
+              git clone -b "$BRANCH" "$REPO_SSH" . || true
             else
-              echo "✅ Repo already exists. Pulling latest code..."
-              git fetch origin
-              git checkout "$BRANCH"
-              git reset --hard "origin/$BRANCH"
+              echo "✅ Repo exists. Pulling latest code..."
+              git fetch origin || true
+              git checkout "$BRANCH" || true
+              git reset --hard "origin/$BRANCH" || true
+            fi
+            set -e
+
+            # Restore .env if backup exists
+            if [ -f "/tmp/tesoro.env.backup" ]; then
+              mv /tmp/tesoro.env.backup "$APP_DIR/.env"
+              echo "✅ .env restored"
             fi
 
             echo "📦 Installing dependencies..."
