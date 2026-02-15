@@ -15,6 +15,8 @@ import {
   GetCollectedTreasuresByUserDto,
   GetTreasureDto,
   GetTreasuresQueryDto,
+  ReportTreasureDto,
+  EnableTreasureDto,
 } from './dto';
 import { DefaultPaginationPipe } from 'src/common/validations';
 import { AuthGuard, RolesGuard } from 'src/common/guards';
@@ -35,8 +37,8 @@ export class TreasureController {
 
   @Post('detail')
   @Roles(ROLE.ADMIN, ROLE.USER)
-  getTreasureDetail(@Body() payload: GetTreasureDto) {
-    return this.treasureService.getTreasureDetail(payload);
+  getTreasureDetail(@GetUser() user: User, @Body() payload: GetTreasureDto) {
+    return this.treasureService.getTreasureDetail(user, payload);
   }
 
   @Post('all')
@@ -79,5 +81,17 @@ export class TreasureController {
     @Body() payload: GetCollectedTreasuresByUserDto,
   ) {
     return this.treasureService.getCollectedTreasuresByUser(query, payload);
+  }
+
+  @Post('report')
+  @Roles(ROLE.ADMIN)
+  reportTreasure(@GetUser() user: User, @Body() payload: ReportTreasureDto) {
+    return this.treasureService.reportTreasure(user, payload);
+  }
+
+  @Post('enable')
+  @Roles(ROLE.ADMIN)
+  enableDisableTreasure(@Body() payload: EnableTreasureDto) {
+    return this.treasureService.enableDisableTreasure(payload);
   }
 }

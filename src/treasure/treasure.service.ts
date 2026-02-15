@@ -2,10 +2,13 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 import { CreateTreasureDto } from './dto/create-treasure.dto';
 import { UpdateTreasureDto } from './dto/update-treasure.dto';
-import { Treasure } from './schema';
+import { Treasure, Report } from './schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -13,16 +16,25 @@ import {
   GetCollectedTreasuresByUserDto,
   GetTreasureDto,
   GetTreasuresQueryDto,
+  ReportTreasureDto,
+  EnableTreasureDto,
 } from './dto';
 import { User } from 'src/user/schema';
-import { TreasureScope } from 'src/common/constants';
+import { TreasureScope, ROLE } from 'src/common/constants';
 import { CollectTreasureDto } from './dto';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class TreasureService {
+  private readonly logger = new Logger(TreasureService.name);
+
   constructor(
     @InjectModel(Treasure.name) private treasureModel: Model<Treasure>,
-  ) { }
+    @InjectModel(Report.name) private reportModel: Model<Report>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    private configService: ConfigService,
+    private emailService: EmailService,
+  ) {}
 
   async createTreasure(user: User, payload: CreateTreasureDto): Promise<any> {
     try {
@@ -50,11 +62,24 @@ export class TreasureService {
     }
   }
 
-  async getTreasureDetail(payload: GetTreasureDto): Promise<any> {
+  async getTreasureDetail(user: User, payload: GetTreasureDto): Promise<any> {
     try {
       const { treasureId } = payload;
+
+      // Build match condition based on user role
+      const matchCondition: any = {
+        _id: new Types.ObjectId(treasureId),
+      };
+
+      // Only filter disabled treasures for non-admin users
+      if (user.role !== ROLE.ADMIN) {
+        matchCondition.isDisable = { $ne: true };
+      }
+
       const result = await this.treasureModel.aggregate([
-        { $match: { _id: new Types.ObjectId(treasureId) } },
+        {
+          $match: matchCondition,
+        },
 
         // postedBy
         {
@@ -122,7 +147,10 @@ export class TreasureService {
           },
         },
         {
-          $unwind: { path: '$collectedByInfo', preserveNullAndEmptyArrays: true },
+          $unwind: {
+            path: '$collectedByInfo',
+            preserveNullAndEmptyArrays: true,
+          },
         },
         // collectedBy ratings
         {
@@ -165,7 +193,8 @@ export class TreasureService {
             collectedBy: {
               $cond: {
                 if: { $ifNull: ['$collectedBy', false] },
-                then: { // Only populate if collectedBy exists
+                then: {
+                  // Only populate if collectedBy exists
                   _id: '$collectedByInfo._id',
                   name: '$collectedByInfo.name',
                   profileImage: '$collectedByInfo.profileImage',
@@ -173,7 +202,12 @@ export class TreasureService {
                     $ifNull: [
                       {
                         $round: [
-                          { $arrayElemAt: ['$collectedByRatingInfo.averageRating', 0] },
+                          {
+                            $arrayElemAt: [
+                              '$collectedByRatingInfo.averageRating',
+                              0,
+                            ],
+                          },
                           1,
                         ],
                       },
@@ -234,8 +268,12 @@ export class TreasureService {
 
       const skip = (page - 1) * limit;
 
-      const filter: any = { isDeleted: { $ne: true } };
+      const filter: any = {};
 
+      // Only filter disabled treasures for non-admin users
+      if (user.role !== ROLE.ADMIN) {
+        filter.isDisable = { $ne: true };
+      }
 
       if (scope === TreasureScope.MINE) {
         filter.postedBy = new Types.ObjectId(user._id);
@@ -327,7 +365,10 @@ export class TreasureService {
           },
         },
         {
-          $unwind: { path: '$collectedByInfo', preserveNullAndEmptyArrays: true },
+          $unwind: {
+            path: '$collectedByInfo',
+            preserveNullAndEmptyArrays: true,
+          },
         },
         // collectedBy ratings
         {
@@ -372,7 +413,8 @@ export class TreasureService {
             collectedBy: {
               $cond: {
                 if: { $ifNull: ['$collectedBy', false] },
-                then: { // Only populate if collectedBy exists
+                then: {
+                  // Only populate if collectedBy exists
                   _id: '$collectedByInfo._id',
                   name: '$collectedByInfo.name',
                   profileImage: '$collectedByInfo.profileImage',
@@ -380,7 +422,12 @@ export class TreasureService {
                     $ifNull: [
                       {
                         $round: [
-                          { $arrayElemAt: ['$collectedByRatingInfo.averageRating', 0] },
+                          {
+                            $arrayElemAt: [
+                              '$collectedByRatingInfo.averageRating',
+                              0,
+                            ],
+                          },
                           1,
                         ],
                       },
@@ -507,23 +554,25 @@ export class TreasureService {
       const skip = (page - 1) * limit;
 
       /* -------------------- BASE FILTER -------------------- */
-      const filterConditions: any[] = [
-        { isDeleted: { $ne: true } },
-      ];
+      const filterConditions: any[] = [];
+
+      // Only filter disabled treasures for non-admin users
+      if (user.role !== ROLE.ADMIN) {
+        filterConditions.push({ isDisable: { $ne: true } });
+      }
 
       if (scope === TreasureScope.MINE) {
         filterConditions.push({ postedBy: new Types.ObjectId(user._id) });
       } else {
         // 🔥 Exclude current user's treasures
-        filterConditions.push({ postedBy: { $ne: new Types.ObjectId(user._id) } });
+        filterConditions.push({
+          postedBy: { $ne: new Types.ObjectId(user._id) },
+        });
       }
 
       // Only return treasures that are not collected (collectedBy is null or doesn't exist)
       filterConditions.push({
-        $or: [
-          { collectedBy: null },
-          { collectedBy: { $exists: false } }
-        ]
+        $or: [{ collectedBy: null }, { collectedBy: { $exists: false } }],
       });
 
       const filter: any = { $and: filterConditions };
@@ -747,6 +796,268 @@ export class TreasureService {
       };
     } catch (error) {
       console.log(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Permanently delete uncollected treasures that are older than specified hours (default 72 hours)
+   * This method is called by cron job every 30 minutes
+   * Uses batch processing for efficiency with multiple treasures
+   * WARNING: This performs hard delete - treasures will be permanently removed from database
+   */
+  async deleteUncollectedTreasures(): Promise<{
+    deletedCount: number;
+    success: boolean;
+  }> {
+    try {
+      // Get cleanup hours from environment variable, default to 72 hours
+      const cleanupHours =
+        this.configService.get<number>('TREASURE_CLEANUP_HOURS') || 72;
+
+      // Calculate the cutoff date (72 hours ago from now)
+      const cutoffDate = new Date();
+      cutoffDate.setHours(cutoffDate.getHours() - cleanupHours);
+
+      this.logger.log(
+        `Starting cleanup of uncollected treasures older than ${cleanupHours} hours (before ${cutoffDate.toISOString()})`,
+      );
+
+      // Use aggregation pipeline to find treasures that should be deleted
+      // Conditions:
+      // 1. createdAt is older than cutoffDate
+      // 2. collectedBy is null (not collected)
+      // 3. postedBy user's isPremium is false or doesn't exist
+      const treasuresToDelete = await this.treasureModel.aggregate([
+        {
+          $match: {
+            createdAt: { $lt: cutoffDate },
+            collectedBy: null,
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'postedBy',
+            foreignField: '_id',
+            as: 'userInfo',
+          },
+        },
+        {
+          $unwind: {
+            path: '$userInfo',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $match: {
+            $or: [
+              { 'userInfo.isPremium': { $ne: true } }, // isPremium is false or null
+              { userInfo: null }, // User doesn't exist or wasn't found
+              { userInfo: { $exists: false } }, // UserInfo field doesn't exist
+            ],
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+          },
+        },
+      ]);
+
+      // Extract treasure IDs to delete
+      const treasureIdsToDelete = treasuresToDelete.map((t) => t._id);
+
+      let deletedCount = 0;
+
+      if (treasureIdsToDelete.length > 0) {
+        // Delete treasures in batch
+        const result = await this.treasureModel.deleteMany({
+          _id: { $in: treasureIdsToDelete },
+        });
+
+        deletedCount = result.deletedCount;
+      }
+
+      if (deletedCount > 0) {
+        this.logger.log(
+          `Successfully permanently deleted ${deletedCount} uncollected treasure(s) older than ${cleanupHours} hours`,
+        );
+      } else {
+        this.logger.debug(
+          `No uncollected treasures found older than ${cleanupHours} hours`,
+        );
+      }
+
+      return {
+        deletedCount,
+        success: true,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error during treasure cleanup: ${error.message}`,
+        error.stack,
+      );
+      return {
+        deletedCount: 0,
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Cron job that runs every 30 minutes to clean up uncollected treasures
+   * This ensures treasures are deleted within 30 minutes of reaching 72 hours
+   */
+  @Cron('*/30 * * * *', {
+    name: 'delete-uncollected-treasures',
+    timeZone: 'UTC',
+  })
+  async handleTreasureCleanupCron(): Promise<void> {
+    this.logger.log('Cron job triggered: Starting treasure cleanup...');
+    const result = await this.deleteUncollectedTreasures();
+
+    if (result.success) {
+      this.logger.log(
+        `Cron job completed: ${result.deletedCount} treasure(s) deleted`,
+      );
+    } else {
+      this.logger.warn('Cron job completed with errors');
+    }
+  }
+
+  /**
+   * Report a treasure for inappropriate content
+   * Creates a report record and disables the treasure
+   */
+  async reportTreasure(user: User, payload: ReportTreasureDto): Promise<any> {
+    try {
+      const { treasureId, reason, description } = payload;
+
+      // Check if treasure exists
+      const treasure = await this.treasureModel.findById(treasureId);
+      if (!treasure) {
+        throw new NotFoundException('Treasure not found');
+      }
+
+      // Check if user has already reported this treasure
+      const existingReport = await this.reportModel.findOne({
+        treasureId: new Types.ObjectId(treasureId),
+        reportedBy: new Types.ObjectId(user._id),
+      });
+
+      if (existingReport) {
+        throw new BadRequestException(
+          'You have already reported this treasure',
+        );
+      }
+
+      // Create report record
+      const report = await this.reportModel.create({
+        treasureId: new Types.ObjectId(treasureId),
+        reportedBy: new Types.ObjectId(user._id),
+        reason: reason.trim(),
+        description: description?.trim() || '',
+      });
+
+      // Disable the treasure
+      await this.treasureModel.findByIdAndUpdate(treasureId, {
+        $set: { isDisable: true },
+      });
+
+      // Get the user who posted the treasure to send email notification
+      const postedByUser = await this.userModel.findById(treasure.postedBy);
+
+      if (postedByUser && postedByUser.email) {
+        try {
+          await this.emailService.sendTreasureReportedEmail(
+            postedByUser.email,
+            postedByUser.name,
+            treasure.title,
+            reason,
+            description?.trim() || undefined,
+          );
+          this.logger.log(
+            `Email notification sent to ${postedByUser.email} for reported treasure`,
+          );
+        } catch (emailError) {
+          // Log email error but don't fail the report operation
+          this.logger.error(
+            `Failed to send email notification: ${emailError.message}`,
+            emailError.stack,
+          );
+        }
+      }
+
+      this.logger.log(`Treasure ${treasureId} reported by admin and disabled`);
+
+      return {
+        message: 'Treasure reported successfully and has been disabled',
+        data: {
+          reportId: report._id,
+          treasureId: treasureId,
+          isDisable: true,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error reporting treasure: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Enable or disable a treasure
+   * When enabling (isDisable: false), update report status to 'resolved' for audit trail
+   * We don't delete report records to maintain history
+   */
+  async enableDisableTreasure(payload: EnableTreasureDto): Promise<any> {
+    try {
+      const { treasureId, isDisable } = payload;
+
+      // Check if treasure exists
+      const treasure = await this.treasureModel.findById(treasureId);
+      if (!treasure) {
+        throw new NotFoundException('Treasure not found');
+      }
+
+      // Update treasure isDisable status
+      const updatedTreasure = await this.treasureModel.findByIdAndUpdate(
+        treasureId,
+        {
+          $set: { isDisable: isDisable },
+        },
+        { new: true },
+      );
+
+      // If treasure is being enabled (isDisable: false), update report status to 'resolved'
+      // We keep the report record for audit trail but mark it as resolved
+      if (!isDisable) {
+        await this.reportModel.deleteMany({
+          treasureId: new Types.ObjectId(treasureId),
+        });
+
+        this.logger.log(
+          `Treasure ${treasureId} enabled and related reports deleted`,
+        );
+      } else {
+        this.logger.log(`Treasure ${treasureId} disabled`);
+      }
+
+      return {
+        message: `Treasure ${isDisable ? 'disabled' : 'enabled'} successfully`,
+        data: {
+          treasureId: treasureId,
+          isDisable: isDisable,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error enabling/disabling treasure: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }

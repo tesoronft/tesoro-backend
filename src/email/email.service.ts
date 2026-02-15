@@ -16,4 +16,25 @@ export class EmailService {
       },
     });
   }
+
+  async sendTreasureReportedEmail(
+    email: string,
+    userName: string,
+    treasureTitle: string,
+    reason: string,
+    description?: string,
+  ) {
+    await this.mailer.sendMail({
+      to: email,
+      subject: 'Your Treasure Has Been Reported - Tesoro',
+      template: 'treasure-reported',
+      context: {
+        userName: userName,
+        treasureTitle: treasureTitle,
+        reason: reason,
+        description: description || '',
+        year: new Date().getFullYear(),
+      },
+    });
+  }
 }

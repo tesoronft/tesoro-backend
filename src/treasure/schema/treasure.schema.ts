@@ -58,6 +58,9 @@ export class Treasure extends Document {
 
   @Prop({ type: Date, default: null })
   collectedAt: Date | null;
+
+  @Prop({ type: Boolean, default: false })
+  isDisable: boolean;
 }
 
 export const TreasureSchema = SchemaFactory.createForClass(Treasure);

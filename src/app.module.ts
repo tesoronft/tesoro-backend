@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UserModule } from './user/user.module';
 import { EmailModule } from './email/email.module';
 import { TreasureModule } from './treasure/treasure.module';
@@ -18,6 +19,7 @@ import { ConditionModule } from './condition/condition.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('DATABASE_URL'),

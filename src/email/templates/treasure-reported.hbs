@@ -1,0 +1,214 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Treasure Reported - Tesoro</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f6f8;
+        margin: 0;
+        padding: 0;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        padding: 30px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+      }
+      .content {
+        padding: 30px;
+      }
+      .alert-box {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 6px;
+      }
+      .alert-box h2 {
+        color: #856404;
+        margin: 0 0 10px 0;
+        font-size: 20px;
+      }
+      .alert-box p {
+        color: #856404;
+        margin: 0;
+        font-size: 16px;
+      }
+      .info-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .info-section h3 {
+        color: #333333;
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .info-item {
+        margin: 12px 0;
+        padding: 12px;
+        background-color: #ffffff;
+        border-radius: 6px;
+        border-left: 3px solid #667eea;
+      }
+      .info-item strong {
+        color: #667eea;
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .info-item span {
+        color: #555555;
+        font-size: 16px;
+        display: block;
+        margin-top: 5px;
+      }
+      .description-box {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 15px 0;
+      }
+      .description-box p {
+        color: #555555;
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .contact-section {
+        background-color: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 6px;
+      }
+      .contact-section h3 {
+        color: #2e7d32;
+        margin: 0 0 10px 0;
+        font-size: 18px;
+      }
+      .contact-section p {
+        color: #2e7d32;
+        margin: 5px 0;
+        font-size: 15px;
+      }
+      .contact-section a {
+        color: #2e7d32;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .contact-section a:hover {
+        text-decoration: underline;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #999999;
+        font-size: 14px;
+        border-top: 1px solid #e0e0e0;
+      }
+      .footer p {
+        margin: 5px 0;
+      }
+      @media (max-width: 600px) {
+        .container {
+          margin: 20px;
+          border-radius: 8px;
+        }
+        .header {
+          padding: 20px;
+        }
+        .header h1 {
+          font-size: 24px;
+        }
+        .content {
+          padding: 20px;
+        }
+        .info-item {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h1>⚠️ Treasure Reported</h1>
+      </div>
+      
+      <div class='content'>
+        <p style='color: #333333; font-size: 16px; margin-bottom: 20px;'>
+          Hello <strong>{{userName}}</strong>,
+        </p>
+        
+        <div class='alert-box'>
+          <h2>⚠️ Important Notice</h2>
+          <p>Your treasure "<strong>{{treasureTitle}}</strong>" has been reported and has been disabled. It will no longer be visible to other users.</p>
+        </div>
+        
+        <div class='info-section'>
+          <h3>📋 Report Details</h3>
+          
+          <div class='info-item'>
+            <strong>Report Reason</strong>
+            <span>{{reason}}</span>
+          </div>
+          
+          {{#if description}}
+          <div class='info-item'>
+            <strong>Description</strong>
+            <div class='description-box'>
+              <p>{{description}}</p>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+        
+        <div class='contact-section'>
+          <h3>📧 Need Help?</h3>
+          <p>If you believe this report was made in error or have any questions, please contact Tesoro Admin:</p>
+          <p>
+            <strong>Email:</strong> 
+            <a href='mailto:admin@tesoro.com'>admin@tesoro.com</a>
+          </p>
+          <p style='margin-top: 10px; font-size: 14px;'>
+            Our support team will review your case and get back to you as soon as possible.
+          </p>
+        </div>
+        
+        <p style='color: #666666; font-size: 14px; margin-top: 30px;'>
+          Thank you for using Tesoro.
+        </p>
+      </div>
+      
+      <div class='footer'>
+        <p>© {{year}} Tesoro. All rights reserved.</p>
+        <p>This is an automated notification. Please do not reply to this email.</p>
+      </div>
+    </div>
+  </body>
+</html>
+
+
