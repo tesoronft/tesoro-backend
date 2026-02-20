@@ -179,12 +179,24 @@ export class UserService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.password) {
-        if (!password)
-          throw new BadRequestException('Password is required for this user');
+      // Check if user has a password (not null, not undefined, not empty string)
+      // Google signup users don't have password, so skip password verification
+      const hasPassword = user.password && user.password.trim().length > 0;
+
+      if (hasPassword) {
+        // User has password, so password verification is required
+        if (!password || !password.trim()) {
+          throw new BadRequestException(
+            'Password is required to delete your account',
+          );
+        }
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) throw new BadRequestException('Invalid password');
+        if (!isMatch) {
+          throw new BadRequestException('Invalid password');
+        }
       }
+      // If user doesn't have password (Google signup), skip password verification
+      // and allow deletion directly
 
       user.isDeleted = true;
       await user.save();

@@ -15,6 +15,7 @@ import { RevenuecatModule } from './revenuecat/revenuecat.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ContentModule } from './content/content.module';
 import { ConditionModule } from './condition/condition.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ConditionModule } from './condition/condition.module';
     SubscriptionModule,
     ContentModule,
     ConditionModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
