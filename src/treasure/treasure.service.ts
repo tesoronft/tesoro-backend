@@ -128,7 +128,7 @@ export class TreasureService {
         {
           $lookup: {
             from: 'conditions',
-            localField: 'conditionObjId',
+            localField: 'condition',
             foreignField: '_id',
             as: 'conditionInfo',
           },
