@@ -45,6 +45,9 @@ export class User extends Document {
 
   @Prop({ type: String, default: null })
   refreshToken: string | null;
+
+  @Prop({ type: Number, default: 0 })
+  treasureAmount: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -60,7 +60,7 @@ export class UserService {
 
       const data = await this.userModel
         .findById(userId)
-        .select('_id name email profileImage role createdAt updatedAt')
+        .select('_id name email profileImage role treasureAmount createdAt updatedAt')
         .lean();
 
       if (!data) throw new NotFoundException('User not found');

@@ -16,6 +16,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ContentModule } from './content/content.module';
 import { ConditionModule } from './condition/condition.module';
 import { UploadModule } from './upload/upload.module';
+import { TreasureCollectModule } from './treasure-collect/treasure-collect.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { UploadModule } from './upload/upload.module';
     ContentModule,
     ConditionModule,
     UploadModule,
+    TreasureCollectModule,
   ],
   controllers: [AppController],
   providers: [AppService],
