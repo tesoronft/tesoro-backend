@@ -6,6 +6,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from 'src/auth/auth.module';
 import { Treasure, TreasureSchema } from 'src/treasure/schema';
 import { Tip, TipSchema } from 'src/tip/schema';
+import {
+  TreasureCollect,
+  TreasureCollectSchema,
+} from 'src/treasure-collect/schema';
 
 @Module({
   imports: [
@@ -14,6 +18,9 @@ import { Tip, TipSchema } from 'src/tip/schema';
       { name: Treasure.name, schema: TreasureSchema },
     ]),
     MongooseModule.forFeature([{ name: Tip.name, schema: TipSchema }]),
+    MongooseModule.forFeature([
+      { name: TreasureCollect.name, schema: TreasureCollectSchema },
+    ]),
     AuthModule,
   ],
   controllers: [UserController],

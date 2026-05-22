@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { Treasure } from 'src/treasure/schema';
 import { Tip } from 'src/tip/schema';
 import { ROLE } from 'src/common/constants';
+import { TreasureCollect } from 'src/treasure-collect/schema';
 
 @Injectable()
 export class UserService {
@@ -20,6 +21,7 @@ export class UserService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Treasure.name) private treasureModel: Model<Treasure>,
     @InjectModel(Tip.name) private tipModel: Model<Tip>,
+    @InjectModel(TreasureCollect.name) private treasureCollectModel: Model<TreasureCollect>,
     private readonly config: ConfigService,
   ) { }
 
@@ -65,12 +67,18 @@ export class UserService {
 
       if (!data) throw new NotFoundException('User not found');
 
-      const [totalTreasuresPosted, totalTreasuresCollected] = await Promise.all(
-        [
-          this.treasureModel.countDocuments({ postedBy: userId }),
-          this.treasureModel.countDocuments({ collectedBy: userId }),
-        ],
-      );
+      const [
+        totalTreasuresPosted,
+        totalTreasuresCollected,
+        totalTreasureAmountCollectedAgg,
+      ] = await Promise.all([
+        this.treasureModel.countDocuments({ postedBy: userId }),
+        this.treasureModel.countDocuments({ collectedBy: userId }),
+        this.treasureCollectModel.aggregate([
+          { $match: { receivedUser: userId } },
+          { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+        ]),
+      ]);
 
       const [totalTipsGivenAmountAgg, totalTipsReceivedAmountAgg] =
         await Promise.all([
@@ -87,11 +95,14 @@ export class UserService {
       const totalTipsGivenAmount = totalTipsGivenAmountAgg[0]?.totalAmount || 0;
       const totalTipsReceivedAmount =
         totalTipsReceivedAmountAgg[0]?.totalAmount || 0;
+      const totalTreasureAmountCollected =
+        totalTreasureAmountCollectedAgg[0]?.totalAmount || 0;
 
       return {
         ...data,
         totalTreasuresPosted,
         totalTreasuresCollected,
+        totalTreasureAmountCollected,
         totalTipsGivenAmount,
         totalTipsReceivedAmount,
       };
