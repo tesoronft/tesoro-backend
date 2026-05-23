@@ -96,7 +96,7 @@ export class UserService {
       const totalTipsReceivedAmount =
         totalTipsReceivedAmountAgg[0]?.totalAmount || 0;
       const totalTreasureAmountCollected =
-        totalTreasureAmountCollectedAgg[0]?.totalAmount || 0;
+        totalTreasureAmountCollectedAgg[0]?.totalAmount || 0; //add treasure amount
 
       return {
         ...data,
